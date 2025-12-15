@@ -242,11 +242,17 @@ class ChatService:
             )
             
             async for chunk in stream:
-                if chunk.choices and chunk.choices[0].delta.content:
-                    content = chunk.choices[0].delta.content
-                    full_response += content
-                    yield content
+                if chunk.choices:
+                    delta = chunk.choices[0].delta
+                    if hasattr(delta, 'content') and delta.content:
+                        content = delta.content
+                        full_response += content
+                        yield content
+                    # 处理思考模型的reasoning内容
+                    if hasattr(delta, 'reasoning_content') and delta.reasoning_content:
+                        pass  # 跳过reasoning，只输出content
             
+            print(f"[ChatService] Full response length: {len(full_response)}")
             if full_response:
                 await self.memory_service.save_conversation(user.id, channel_id, "user", message)
                 await self.memory_service.save_conversation(user.id, channel_id, "assistant", full_response)
