@@ -242,11 +242,13 @@ class ChatService:
                 "stream": True
             }
             
-            # thinking模型需要特殊参数
+            # thinking模型通过extra_body传递特殊参数
             if "thinking" in model.lower():
-                request_params["thinking"] = {
-                    "type": "enabled",
-                    "budget_tokens": 10000
+                request_params["extra_body"] = {
+                    "thinking": {
+                        "type": "enabled",
+                        "budget_tokens": 10000
+                    }
                 }
             
             stream = await client.chat.completions.create(**request_params)
