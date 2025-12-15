@@ -525,12 +525,20 @@
         <div id="sensitive" class="tab-content">
           <div class="flex justify-between items-center mb-6">
             <h1 class="text-3xl font-bold text-gray-800">敏感词管理</h1>
-            <button
-              onclick="showSensitiveModal()"
-              class="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition"
-            >
-              <i class="fas fa-plus mr-2"></i>添加敏感词
-            </button>
+            <div class="flex space-x-2">
+              <button
+                onclick="showSensitiveImportModal()"
+                class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition"
+              >
+                <i class="fas fa-file-import mr-2"></i>批量导入
+              </button>
+              <button
+                onclick="showSensitiveModal()"
+                class="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition"
+              >
+                <i class="fas fa-plus mr-2"></i>添加敏感词
+              </button>
+            </div>
           </div>
           <div class="bg-white rounded-xl shadow-sm overflow-hidden">
             <table class="w-full">
@@ -568,6 +576,59 @@
       </div>
     </div>
 
+    <!-- Sensitive Import Modal -->
+    <div
+      id="sensitiveImportModal"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden"
+    >
+      <div
+        class="bg-white rounded-lg p-6 w-[500px] max-h-[80vh] overflow-y-auto"
+      >
+        <h2 class="text-xl font-bold mb-4">批量导入敏感词</h2>
+        <p class="text-sm text-gray-500 mb-3">每行一个敏感词</p>
+        <div class="mb-3">
+          <input
+            type="file"
+            id="sensitiveImportFile"
+            accept=".txt"
+            onchange="loadSensitiveFile()"
+            class="text-sm"
+          />
+          <span class="text-xs text-gray-500 ml-2">或粘贴到下方</span>
+        </div>
+        <textarea
+          id="sensitiveImportText"
+          placeholder="每行一个敏感词..."
+          rows="10"
+          class="w-full px-4 py-2 border rounded-lg mb-3 font-mono text-sm"
+        ></textarea>
+        <input
+          type="text"
+          id="sensitiveImportCategory"
+          placeholder="分类（可选）"
+          class="w-full px-3 py-2 border rounded-lg mb-4"
+        />
+        <div
+          id="sensitiveImportPreview"
+          class="text-sm text-gray-500 mb-4"
+        ></div>
+        <div class="flex justify-end space-x-3">
+          <button
+            onclick="hideSensitiveImportModal()"
+            class="px-4 py-2 border rounded-lg hover:bg-gray-100"
+          >
+            取消
+          </button>
+          <button
+            onclick="doSensitiveImport()"
+            class="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
+          >
+            导入
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Import Modal -->
     <div
       id="importModal"
@@ -581,10 +642,20 @@
           支持用 <code>===</code> 分隔大块，<code>---</code>
           分隔小块，或每行一条
         </p>
+        <div class="mb-3">
+          <input
+            type="file"
+            id="importFile"
+            accept=".txt,.md"
+            onchange="loadImportFile()"
+            class="text-sm"
+          />
+          <span class="text-xs text-gray-500 ml-2">或粘贴内容到下方</span>
+        </div>
         <textarea
           id="importText"
           placeholder="粘贴知识内容..."
-          rows="12"
+          rows="10"
           class="w-full px-4 py-2 border rounded-lg mb-3 font-mono text-sm"
         ></textarea>
         <div class="flex items-center mb-4">
@@ -1251,11 +1322,83 @@
       // Modal functions
       function showImportModal() {
         document.getElementById("importText").value = "";
+        document.getElementById("importFile").value = "";
         document.getElementById("importPreview").innerHTML = "";
         document.getElementById("importModal").classList.remove("hidden");
       }
       function hideImportModal() {
         document.getElementById("importModal").classList.add("hidden");
+      }
+
+      function loadImportFile() {
+        const file = document.getElementById("importFile").files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            document.getElementById("importText").value = e.target.result;
+            previewImport();
+          };
+          reader.readAsText(file);
+        }
+      }
+
+      function showSensitiveImportModal() {
+        document.getElementById("sensitiveImportText").value = "";
+        document.getElementById("sensitiveImportFile").value = "";
+        document.getElementById("sensitiveImportPreview").innerHTML = "";
+        document
+          .getElementById("sensitiveImportModal")
+          .classList.remove("hidden");
+      }
+      function hideSensitiveImportModal() {
+        document.getElementById("sensitiveImportModal").classList.add("hidden");
+      }
+
+      function loadSensitiveFile() {
+        const file = document.getElementById("sensitiveImportFile").files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            document.getElementById("sensitiveImportText").value =
+              e.target.result;
+            const lines = e.target.result.split("\n").filter((l) => l.trim());
+            document.getElementById(
+              "sensitiveImportPreview"
+            ).innerHTML = `将导入 <strong>${lines.length}</strong> 个敏感词`;
+          };
+          reader.readAsText(file);
+        }
+      }
+
+      async function doSensitiveImport() {
+        const text = document.getElementById("sensitiveImportText").value;
+        const category = document.getElementById(
+          "sensitiveImportCategory"
+        ).value;
+        const words = text
+          .split("\n")
+          .map((w) => w.trim())
+          .filter((w) => w.length > 0);
+
+        if (words.length === 0) {
+          alert("没有可导入的敏感词");
+          return;
+        }
+
+        let success = 0;
+        for (const word of words) {
+          try {
+            await api("/api/admin/sensitive-words", "POST", {
+              word: word,
+              category: category || "导入",
+            });
+            success++;
+          } catch (e) {}
+        }
+
+        alert(`成功导入 ${success}/${words.length} 个敏感词`);
+        hideSensitiveImportModal();
+        loadSensitiveWords();
       }
 
       function previewImport() {
