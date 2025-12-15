@@ -52,9 +52,11 @@ async def chat_stream(request: ChatRequest, db: AsyncSession = Depends(get_db)):
                 yield f"data: {json.dumps({'content': result['response']})}\n\n"
                 yield f"data: {json.dumps({'content': '[STATS]0|0'})}\n\n"
             elif result.get("is_blocked"):
-                yield f"data: {json.dumps({'content': f'[BLOCKED]{result.get(\"block_reason\", \"被阻止\")}'})}\n\n"
+                block_reason = result.get('block_reason', '被阻止')
+                yield f"data: {json.dumps({'content': f'[BLOCKED]{block_reason}'})}\n\n"
             else:
-                yield f"data: {json.dumps({'content': f'[ERROR]{result.get(\"error\", \"未知错误\")}'})}\n\n"
+                error_msg = result.get('error', '未知错误')
+                yield f"data: {json.dumps({'content': f'[ERROR]{error_msg}'})}\n\n"
         
         return StreamingResponse(
             generate_non_stream(),
