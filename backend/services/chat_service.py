@@ -172,11 +172,13 @@ class ChatService:
         
         if image_urls:
             print(f"[ChatService] Building message with {len(image_urls)} images")
-            content = [{"type": "text", "text": user_message}]
+            # 添加图片分析提示
+            image_prompt = "【用户发送了图片，请仔细观察图片中的所有文字、代码、错误信息等细节内容，准确理解后再回复】\n" + user_message
+            content = [{"type": "text", "text": image_prompt}]
             for url in image_urls:
                 content.append({
                     "type": "image_url",
-                    "image_url": {"url": url}
+                    "image_url": {"url": url, "detail": "high"}
                 })
             messages.append({"role": "user", "content": content})
         else:
