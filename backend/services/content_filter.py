@@ -42,9 +42,22 @@ class ContentFilter:
             if re.search(pattern, content_lower, re.IGNORECASE):
                 return False, "检测到破甲话术"
         
+        # 移除纯数字串（如用户ID）后再检测，避免误匹配
+        # 保留原文用于检测，但对纯数字敏感词特殊处理
+        content_no_ids = re.sub(r'\b\d{10,}\b', '', content_lower)  # 移除10位以上数字
+        
         for word in self._sensitive_words:
-            if word in content_lower:
-                return False, f"包含敏感词"
+            # 纯数字敏感词需要独立匹配，不能是长数字的一部分
+            if word.isdigit():
+                if re.search(r'(?<!\d)' + re.escape(word) + r'(?!\d)', content_lower):
+                    return False, f"包含敏感词"
+            # 短词（<=2字符）需要更严格匹配
+            elif len(word) <= 2:
+                if re.search(r'(?<!\w)' + re.escape(word) + r'(?!\w)', content_lower):
+                    return False, f"包含敏感词"
+            else:
+                if word in content_lower:
+                    return False, f"包含敏感词"
         
         return True, ""
     
