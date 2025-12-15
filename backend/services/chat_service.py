@@ -124,6 +124,9 @@ class ChatService:
         
         system_content = await self.get_system_prompt()
         
+        # 输出格式限制
+        system_content += "\n\n【输出格式要求】直接用文字回复，不要使用括号描述动作或心理活动，如(笑)(思考)(偷偷xxx)等。"
+        
         # 根据聊天模式添加不同提示
         if chat_mode == "qa":
             system_content += "\n\n【答疑模式】请只关注当前问题，不要参考之前的对话历史。"
