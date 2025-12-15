@@ -244,13 +244,18 @@ class ChatService:
             async for chunk in stream:
                 if chunk.choices:
                     delta = chunk.choices[0].delta
+                    content = None
+                    
+                    # 标准content字段
                     if hasattr(delta, 'content') and delta.content:
                         content = delta.content
+                    # 某些API返回text字段
+                    elif hasattr(delta, 'text') and delta.text:
+                        content = delta.text
+                    
+                    if content:
                         full_response += content
                         yield content
-                    # 处理思考模型的reasoning内容
-                    if hasattr(delta, 'reasoning_content') and delta.reasoning_content:
-                        pass  # 跳过reasoning，只输出content
             
             print(f"[ChatService] Full response length: {len(full_response)}")
             if full_response:
