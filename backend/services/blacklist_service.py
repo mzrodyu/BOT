@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete
-from database.models import Blacklist
+from database.models import Blacklist, User
 from typing import Optional, List
 from datetime import datetime, timedelta
 
@@ -16,11 +16,22 @@ class BlacklistService:
         reason: str = None, 
         banned_by: str = None,
         is_permanent: bool = False,
-        duration_minutes: int = None
+        duration_minutes: int = None,
+        delete_data: bool = True
     ) -> Blacklist:
         existing = await self.get_by_discord_id(discord_id)
         if existing:
             await self.db.delete(existing)
+        
+        # 删除用户数据（对话记录、记忆等）
+        if delete_data:
+            user_result = await self.db.execute(
+                select(User).where(User.discord_id == discord_id)
+            )
+            user = user_result.scalar_one_or_none()
+            if user:
+                await self.db.delete(user)  # 级联删除memories和conversations
+                print(f"[BlacklistService] Deleted user data for {discord_id}")
         
         expires_at = None
         if not is_permanent and duration_minutes:

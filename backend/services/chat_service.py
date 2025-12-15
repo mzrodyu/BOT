@@ -117,7 +117,8 @@ class ChatService:
         knowledge_results: List[str],
         image_urls: List[str],
         guild_emojis: str = None,
-        chat_mode: str = "chat"
+        chat_mode: str = "chat",
+        username: str = ""
     ) -> List[Dict]:
         messages = []
         
@@ -246,7 +247,8 @@ class ChatService:
             knowledge_results=knowledge_texts,
             image_urls=image_urls or [],
             guild_emojis=guild_emojis,
-            chat_mode=chat_mode
+            chat_mode=chat_mode,
+            username=username
         )
         
         try:
@@ -315,7 +317,8 @@ class ChatService:
             knowledge_results=knowledge_texts,
             image_urls=image_urls or [],
             guild_emojis=guild_emojis,
-            chat_mode=chat_mode
+            chat_mode=chat_mode,
+            username=username
         )
         
         # 支持失败重试下一个模型
