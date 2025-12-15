@@ -162,9 +162,18 @@ class MessageHandler(commands.Cog):
     
     async def get_image_urls(self, message: discord.Message) -> List[str]:
         urls = []
+        image_extensions = ('.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp')
         for attachment in message.attachments:
+            # 检查content_type或文件扩展名
+            is_image = False
             if attachment.content_type and attachment.content_type.startswith("image/"):
+                is_image = True
+            elif attachment.filename.lower().endswith(image_extensions):
+                is_image = True
+            
+            if is_image:
                 urls.append(attachment.url)
+                print(f"[MessageHandler] Image found: {attachment.filename} ({attachment.content_type})")
         return urls
     
     def process_content(self, content: str, guild: discord.Guild) -> str:
