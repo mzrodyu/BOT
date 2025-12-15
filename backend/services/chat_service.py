@@ -286,78 +286,94 @@ class ChatService:
             chat_mode=chat_mode
         )
         
-        try:
-            client, model, source = await self.get_client_and_model()
-            full_response = ""
-            
-            print(f"[ChatService] Using model: {model} from {source}, mode: {chat_mode}")
-            print(f"[ChatService] Messages count: {len(messages)}")
-            
-            # 构建请求参数
-            request_params = {
-                "model": model,
-                "messages": messages,
-                "max_tokens": 16000,
-                "stream": True
-            }
-            
-            # thinking模型通过extra_body传递特殊参数
-            if "thinking" in model.lower():
-                request_params["extra_body"] = {
-                    "thinking": {
-                        "type": "enabled",
-                        "budget_tokens": 10000
-                    }
-                }
-            
-            stream = await client.chat.completions.create(**request_params)
-            
-            input_tokens = 0
-            output_tokens = 0
-            
-            async for chunk in stream:
-                # 获取usage信息
-                if hasattr(chunk, 'usage') and chunk.usage:
-                    if hasattr(chunk.usage, 'prompt_tokens'):
-                        input_tokens = chunk.usage.prompt_tokens
-                    if hasattr(chunk.usage, 'completion_tokens'):
-                        output_tokens = chunk.usage.completion_tokens
+        # 支持失败重试下一个模型
+        max_retries = 3
+        last_error = None
+        
+        for retry in range(max_retries):
+            try:
+                client, model, source = await self.get_client_and_model()
+                full_response = ""
                 
-                if chunk.choices and len(chunk.choices) > 0:
-                    choice = chunk.choices[0]
-                    delta = getattr(choice, 'delta', None)
-                    content = None
+                print(f"[ChatService] Attempt {retry+1}: Using model: {model} from {source}, mode: {chat_mode}")
+                print(f"[ChatService] Messages count: {len(messages)}")
+                
+                # 构建请求参数
+                request_params = {
+                    "model": model,
+                    "messages": messages,
+                    "max_tokens": 16000,
+                    "stream": True
+                }
+                
+                # thinking模型通过extra_body传递特殊参数
+                if "thinking" in model.lower():
+                    request_params["extra_body"] = {
+                        "thinking": {
+                            "type": "enabled",
+                            "budget_tokens": 10000
+                        }
+                    }
+                
+                stream = await client.chat.completions.create(**request_params)
+                
+                input_tokens = 0
+                output_tokens = 0
+                
+                async for chunk in stream:
+                    # 获取usage信息
+                    if hasattr(chunk, 'usage') and chunk.usage:
+                        if hasattr(chunk.usage, 'prompt_tokens'):
+                            input_tokens = chunk.usage.prompt_tokens
+                        if hasattr(chunk.usage, 'completion_tokens'):
+                            output_tokens = chunk.usage.completion_tokens
                     
-                    if delta:
-                        # 标准content字段
-                        content = getattr(delta, 'content', None)
-                        # 某些API返回text字段
+                    if chunk.choices and len(chunk.choices) > 0:
+                        choice = chunk.choices[0]
+                        delta = getattr(choice, 'delta', None)
+                        content = None
+                        
+                        if delta:
+                            # 标准content字段
+                            content = getattr(delta, 'content', None)
+                            # 某些API返回text字段
+                            if not content:
+                                content = getattr(delta, 'text', None)
+                        
+                        # 某些API直接在choice上返回text
                         if not content:
-                            content = getattr(delta, 'text', None)
-                    
-                    # 某些API直接在choice上返回text
-                    if not content:
-                        content = getattr(choice, 'text', None)
-                    
-                    # newapi/one-api可能返回message
-                    if not content and hasattr(choice, 'message'):
-                        msg = choice.message
-                        content = getattr(msg, 'content', None)
-                    
-                    if content:
-                        full_response += content
-                        yield content
-            
-            # 发送统计信息
-            yield f"[STATS]{input_tokens}|{output_tokens}"
-            
-            print(f"[ChatService] Full response length: {len(full_response)}")
-            if full_response:
-                await self.memory_service.save_conversation(user.id, channel_id, "user", message)
-                await self.memory_service.save_conversation(user.id, channel_id, "assistant", full_response)
-            
-        except Exception as e:
-            import traceback
-            print(f"[ChatService] Error: {str(e)}")
-            print(f"[ChatService] Traceback: {traceback.format_exc()}")
-            yield f"[ERROR]{str(e)}"
+                            content = getattr(choice, 'text', None)
+                        
+                        # newapi/one-api可能返回message
+                        if not content and hasattr(choice, 'message'):
+                            msg = choice.message
+                            content = getattr(msg, 'content', None)
+                        
+                        if content:
+                            full_response += content
+                            yield content
+                
+                # 发送统计信息
+                yield f"[STATS]{input_tokens}|{output_tokens}"
+                
+                print(f"[ChatService] Full response length: {len(full_response)}")
+                if full_response:
+                    await self.memory_service.save_conversation(user.id, channel_id, "user", message)
+                    await self.memory_service.save_conversation(user.id, channel_id, "assistant", full_response)
+                
+                # 成功，退出重试循环
+                return
+                
+            except Exception as e:
+                import traceback
+                last_error = str(e)
+                print(f"[ChatService] Attempt {retry+1} failed: {last_error}")
+                print(f"[ChatService] Traceback: {traceback.format_exc()}")
+                
+                # 如果还有重试机会，继续尝试下一个模型
+                if retry < max_retries - 1:
+                    print(f"[ChatService] Retrying with next model...")
+                    continue
+        
+        # 所有重试都失败
+        yield f"[ERROR]{last_error}"
