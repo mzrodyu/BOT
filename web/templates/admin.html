@@ -1369,10 +1369,12 @@
           reader.onload = (e) => {
             document.getElementById("sensitiveImportText").value =
               e.target.result;
-            const lines = e.target.result.split("\n").filter((l) => l.trim());
+            const lines = e.target.result
+              .split("\n")
+              .filter((l) => l.trim() && !l.trim().startsWith("#"));
             document.getElementById(
               "sensitiveImportPreview"
-            ).innerHTML = `将导入 <strong>${lines.length}</strong> 个敏感词`;
+            ).innerHTML = `将导入 <strong>${lines.length}</strong> 个敏感词（已跳过注释）`;
           };
           reader.readAsText(file);
         }
@@ -1386,7 +1388,7 @@
         const words = text
           .split("\n")
           .map((w) => w.trim())
-          .filter((w) => w.length > 0);
+          .filter((w) => w.length > 0 && !w.startsWith("#"));
 
         if (words.length === 0) {
           alert("没有可导入的敏感词");
