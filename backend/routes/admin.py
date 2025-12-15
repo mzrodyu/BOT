@@ -304,6 +304,31 @@ async def update_llm_config(
     return {"success": True}
 
 
+# Bot频道列表缓存（内存存储）
+_bot_channels_cache = {}
+
+
+@router.post("/bot-channels")
+async def report_bot_channels(
+    request: dict,
+    _: bool = Depends(verify_admin)
+):
+    """接收Bot上报的频道列表"""
+    bot_id = request.get("bot_id")
+    guilds = request.get("guilds", [])
+    _bot_channels_cache[bot_id] = guilds
+    return {"success": True, "count": sum(len(g.get("channels", [])) for g in guilds)}
+
+
+@router.get("/bot-channels/{bot_id}")
+async def get_bot_channels(
+    bot_id: str,
+    _: bool = Depends(verify_admin)
+):
+    """获取Bot上报的频道列表"""
+    return _bot_channels_cache.get(bot_id, [])
+
+
 @router.get("/llm-models")
 async def get_llm_models(
     db: AsyncSession = Depends(get_db),

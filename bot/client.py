@@ -38,6 +38,45 @@ class CatieBot(commands.Bot):
                 name="@我 来聊天"
             )
         )
+        # 上报频道列表到后端
+        await self.report_channels()
+    
+    async def report_channels(self):
+        """上报Bot可见的所有频道到后端"""
+        try:
+            channels_data = []
+            for guild in self.guilds:
+                guild_data = {
+                    "guild_id": str(guild.id),
+                    "guild_name": guild.name,
+                    "channels": []
+                }
+                
+                for channel in guild.channels:
+                    # 文字频道、论坛、帖子
+                    if isinstance(channel, (discord.TextChannel, discord.ForumChannel, discord.Thread)):
+                        channel_info = {
+                            "channel_id": str(channel.id),
+                            "channel_name": channel.name,
+                            "type": "text" if isinstance(channel, discord.TextChannel) else 
+                                   "forum" if isinstance(channel, discord.ForumChannel) else "thread",
+                            "parent_id": str(channel.parent_id) if hasattr(channel, 'parent_id') and channel.parent_id else None
+                        }
+                        guild_data["channels"].append(channel_info)
+                
+                channels_data.append(guild_data)
+            
+            await self.http_client.post(
+                f"{settings.backend_url}/api/admin/bot-channels",
+                json={
+                    "bot_id": settings.bot_id,
+                    "guilds": channels_data
+                },
+                headers={"X-Admin-Secret": settings.admin_password}
+            )
+            print(f"Reported {sum(len(g['channels']) for g in channels_data)} channels to backend")
+        except Exception as e:
+            print(f"Error reporting channels: {e}")
     
     async def close(self):
         await self.http_client.aclose()
