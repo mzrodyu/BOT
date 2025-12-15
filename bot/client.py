@@ -126,9 +126,14 @@ class MessageHandler(commands.Cog):
                 import re
                 content = re.sub(r'\n?-# Time:.*$', '', content, flags=re.MULTILINE)
                 content = re.sub(r'\n?`Time:.*$', '', content, flags=re.MULTILINE)
+                # 清理表情格式残留
+                content = re.sub(r'<a?:[^:]+:\d+>', '', content)
             else:
-                # 用户消息加上用户名标识
-                content = f"[{msg.author.display_name}]: {content}"
+                # 清理@提及，只保留纯文本内容
+                import re
+                content = re.sub(r'<@!?\d+>', '', content).strip()
+                if content:
+                    content = f"[{msg.author.display_name}]: {content}"
             
             if content.strip():
                 messages.append({"role": role, "content": content})
@@ -251,15 +256,22 @@ class MessageHandler(commands.Cog):
         """将文本中的表情标记替换为服务器表情"""
         import re
         
-        # 匹配 :emoji_name: 格式
-        emoji_pattern = re.compile(r':([a-zA-Z0-9_]+):')
+        if not guild:
+            return content
+        
+        # 匹配 :emoji_name: 格式（但不匹配已经是Discord格式的表情）
+        emoji_pattern = re.compile(r'(?<![<a]):([a-zA-Z0-9_]+):(?!\d)')
         
         def replace_emoji(match):
             emoji_name = match.group(1)
-            # 先在当前服务器找
+            # 在当前服务器找
             for emoji in guild.emojis:
                 if emoji.name.lower() == emoji_name.lower():
-                    return str(emoji)
+                    # 返回正确的Discord表情格式
+                    if emoji.animated:
+                        return f"<a:{emoji.name}:{emoji.id}>"
+                    else:
+                        return f"<:{emoji.name}:{emoji.id}>"
             # 找不到返回原文
             return match.group(0)
         
