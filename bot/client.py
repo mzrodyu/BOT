@@ -143,7 +143,7 @@ class MessageHandler(commands.Cog):
     async def get_pinned_messages(self, channel: discord.TextChannel) -> List[str]:
         try:
             pinned = await channel.pins()
-            return [f"[{p.author.display_name}]: {p.content}" for p in pinned[:50]]
+            return [f"[{p.author.display_name}]: {p.content}" for p in pinned[:5]]
         except:
             return []
     
