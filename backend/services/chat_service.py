@@ -311,7 +311,10 @@ class ChatService:
                 client, model, source = await self.get_client_and_model()
                 full_response = ""
                 
-                print(f"[ChatService] Attempt {retry+1}: Using model: {model} from {source}, mode: {chat_mode}")
+                # 获取流式开关（跟随主API设置）
+                stream_enabled = await self.is_stream_enabled()
+                
+                print(f"[ChatService] Attempt {retry+1}: Using model: {model} from {source}, mode: {chat_mode}, stream: {stream_enabled}")
                 print(f"[ChatService] Messages count: {len(messages)}")
                 
                 # 构建请求参数
@@ -319,7 +322,7 @@ class ChatService:
                     "model": model,
                     "messages": messages,
                     "max_tokens": 16000,
-                    "stream": True
+                    "stream": stream_enabled
                 }
                 
                 # thinking模型通过extra_body传递特殊参数
@@ -331,42 +334,50 @@ class ChatService:
                         }
                     }
                 
-                stream = await client.chat.completions.create(**request_params)
+                response = await client.chat.completions.create(**request_params)
                 
                 input_tokens = 0
                 output_tokens = 0
                 
-                async for chunk in stream:
-                    # 获取usage信息
-                    if hasattr(chunk, 'usage') and chunk.usage:
-                        if hasattr(chunk.usage, 'prompt_tokens'):
-                            input_tokens = chunk.usage.prompt_tokens
-                        if hasattr(chunk.usage, 'completion_tokens'):
-                            output_tokens = chunk.usage.completion_tokens
-                    
-                    if chunk.choices and len(chunk.choices) > 0:
-                        choice = chunk.choices[0]
-                        delta = getattr(choice, 'delta', None)
-                        content = None
+                if stream_enabled:
+                    # 流式响应
+                    async for chunk in response:
+                        if hasattr(chunk, 'usage') and chunk.usage:
+                            if hasattr(chunk.usage, 'prompt_tokens'):
+                                input_tokens = chunk.usage.prompt_tokens
+                            if hasattr(chunk.usage, 'completion_tokens'):
+                                output_tokens = chunk.usage.completion_tokens
                         
-                        if delta:
-                            # 标准content字段
-                            content = getattr(delta, 'content', None)
-                            # 某些API返回text字段
+                        if chunk.choices and len(chunk.choices) > 0:
+                            choice = chunk.choices[0]
+                            delta = getattr(choice, 'delta', None)
+                            content = None
+                            
+                            if delta:
+                                content = getattr(delta, 'content', None)
+                                if not content:
+                                    content = getattr(delta, 'text', None)
+                            
                             if not content:
-                                content = getattr(delta, 'text', None)
-                        
-                        # 某些API直接在choice上返回text
-                        if not content:
-                            content = getattr(choice, 'text', None)
-                        
-                        # newapi/one-api可能返回message
-                        if not content and hasattr(choice, 'message'):
-                            msg = choice.message
-                            content = getattr(msg, 'content', None)
-                        
+                                content = getattr(choice, 'text', None)
+                            
+                            if not content and hasattr(choice, 'message'):
+                                msg = choice.message
+                                content = getattr(msg, 'content', None)
+                            
+                            if content:
+                                full_response += content
+                                yield content
+                else:
+                    # 非流式响应
+                    if hasattr(response, 'usage') and response.usage:
+                        input_tokens = getattr(response.usage, 'prompt_tokens', 0)
+                        output_tokens = getattr(response.usage, 'completion_tokens', 0)
+                    
+                    if response.choices and len(response.choices) > 0:
+                        content = response.choices[0].message.content
                         if content:
-                            full_response += content
+                            full_response = content
                             yield content
                 
                 # 发送统计信息
