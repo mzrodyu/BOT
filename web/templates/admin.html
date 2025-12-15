@@ -20,9 +20,68 @@
         background-color: rgb(79 70 229);
         color: white;
       }
+      /* Toast 通知样式 */
+      .toast-container {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .toast {
+        padding: 16px 24px;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        animation: slideIn 0.3s ease-out;
+        max-width: 400px;
+        backdrop-filter: blur(10px);
+      }
+      .toast.success {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+      }
+      .toast.error {
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        color: white;
+      }
+      .toast.info {
+        background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+        color: white;
+      }
+      .toast i {
+        font-size: 20px;
+      }
+      @keyframes slideIn {
+        from {
+          transform: translateX(100%);
+          opacity: 0;
+        }
+        to {
+          transform: translateX(0);
+          opacity: 1;
+        }
+      }
+      @keyframes slideOut {
+        from {
+          transform: translateX(0);
+          opacity: 1;
+        }
+        to {
+          transform: translateX(100%);
+          opacity: 0;
+        }
+      }
     </style>
   </head>
   <body class="bg-gray-100 min-h-screen">
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
     <!-- Login Modal -->
     <div
       id="loginModal"
@@ -1214,6 +1273,29 @@
       let adminSecret = "";
       const API_BASE = "";
 
+      // Toast 通知函数
+      function showToast(message, type = "info", duration = 3000) {
+        const container = document.getElementById("toastContainer");
+        const toast = document.createElement("div");
+        toast.className = `toast ${type}`;
+
+        const icons = {
+          success: "fa-check-circle",
+          error: "fa-times-circle",
+          info: "fa-info-circle",
+        };
+
+        toast.innerHTML = `<i class="fas ${
+          icons[type] || icons.info
+        }"></i><span>${message}</span>`;
+        container.appendChild(toast);
+
+        setTimeout(() => {
+          toast.style.animation = "slideOut 0.3s ease-out forwards";
+          setTimeout(() => toast.remove(), 300);
+        }, duration);
+      }
+
       async function api(endpoint, method = "GET", body = null) {
         const options = {
           method,
@@ -1451,7 +1533,7 @@
       async function summarizeUser() {
         const discordId = document.getElementById("userSelect").value;
         if (!discordId) {
-          alert("请先选择用户");
+          showToast("请先选择用户", "error");
           return;
         }
         try {
@@ -1460,10 +1542,10 @@
           btn.innerHTML =
             '<i class="fas fa-spinner fa-spin mr-2"></i>汇总中...';
           await api(`/api/admin/memories/summarize/${discordId}`, "POST");
-          alert("汇总成功！");
+          showToast("汇总成功！", "success");
           loadMemories();
         } catch (e) {
-          alert("汇总失败: " + e.message);
+          showToast("汇总失败: " + e.message, "error");
         } finally {
           const btn = document.querySelector(
             'button[onclick="summarizeUser()"]'
@@ -1502,7 +1584,7 @@
           hideMemoryModal();
           loadMemories();
         } catch (e) {
-          alert("保存失败: " + e.message);
+          showToast("保存失败: " + e.message, "error");
         }
       }
 
@@ -1604,10 +1686,10 @@
         }
         try {
           await api("/api/admin/sensitive-words/clear", "DELETE");
-          alert("已清空所有敏感词");
+          showToast("已清空所有敏感词", "success");
           loadSensitiveWords();
         } catch (e) {
-          alert("清空失败: " + e.message);
+          showToast("清空失败: " + e.message, "error");
         }
       }
 
@@ -1622,7 +1704,7 @@
           .filter((w) => w.length > 0 && !w.startsWith("#"));
 
         if (words.length === 0) {
-          alert("没有可导入的敏感词");
+          showToast("没有可导入的敏感词", "error");
           return;
         }
 
@@ -1640,9 +1722,12 @@
             words: words,
             category: category || "导入",
           });
-          alert(`导入完成！新增 ${result.added}/${result.total} 个敏感词`);
+          showToast(
+            `导入完成！新增 ${result.added}/${result.total} 个敏感词`,
+            "success"
+          );
         } catch (e) {
-          alert("导入失败: " + e.message);
+          showToast("导入失败: " + e.message, "error");
         }
 
         importBtn.disabled = false;
@@ -1678,7 +1763,7 @@
           .map((p) => p.trim())
           .filter((p) => p.length > 0);
         if (parts.length === 0) {
-          alert("没有可导入的内容");
+          showToast("没有可导入的内容", "error");
           return;
         }
 
@@ -1698,7 +1783,7 @@
           } catch (e) {}
         }
 
-        alert(`成功导入 ${success}/${parts.length} 条知识`);
+        showToast(`成功导入 ${success}/${parts.length} 条知识`, "success");
         hideImportModal();
         loadKnowledge();
       }
@@ -1923,7 +2008,7 @@
         const stream = document.getElementById("llmStream").checked;
 
         if (!model) {
-          alert("请选择或输入模型名称");
+          showToast("请选择或输入模型名称", "error");
           return;
         }
 
@@ -1938,10 +2023,10 @@
 
         try {
           await api("/api/admin/llm-config", "PUT", data);
-          alert("保存成功！模型: " + model);
+          showToast("保存成功！模型: " + model, "success");
           loadLLMConfig(); // 重新加载显示
         } catch (e) {
-          alert("保存失败: " + e.message);
+          showToast("保存失败: " + e.message, "error");
         }
       }
 
@@ -2215,7 +2300,7 @@
         };
 
         if (!data.base_url || !data.api_key || !data.model) {
-          alert("请填写API地址、密钥和模型名称");
+          showToast("请填写API地址、密钥和模型名称", "error");
           return;
         }
 
@@ -2224,7 +2309,7 @@
           hideLLMPoolModal();
           loadLLMPool();
         } catch (e) {
-          alert("添加失败：" + e.message);
+          showToast("添加失败：" + e.message, "error");
         }
       }
 
@@ -2234,7 +2319,7 @@
             await api(`/api/admin/llm-pool/${index}`, "DELETE");
             loadLLMPool();
           } catch (e) {
-            alert("删除失败：" + e.message);
+            showToast("删除失败：" + e.message, "error");
           }
         }
       }
@@ -2244,7 +2329,7 @@
           await api(`/api/admin/llm-pool/${index}/toggle`, "PUT", { enabled });
           loadLLMPool();
         } catch (e) {
-          alert("操作失败：" + e.message);
+          showToast("操作失败：" + e.message, "error");
         }
       }
 
@@ -2252,12 +2337,12 @@
         try {
           const result = await api(`/api/admin/llm-pool/${index}/test`, "POST");
           if (result.success) {
-            alert("✓ 连接成功");
+            showToast("连接成功", "success");
           } else {
-            alert("✗ " + result.message);
+            showToast(result.message, "error");
           }
         } catch (e) {
-          alert("✗ 测试失败：" + e.message);
+          showToast("测试失败：" + e.message, "error");
         }
       }
 
@@ -2281,9 +2366,9 @@
             api_key: document.getElementById("embeddingApiKey").value,
             model: document.getElementById("embeddingModel").value,
           });
-          alert("向量配置已保存");
+          showToast("向量配置已保存", "success");
         } catch (e) {
-          alert("保存失败：" + e.message);
+          showToast("保存失败：" + e.message, "error");
         }
       }
 
@@ -2294,7 +2379,7 @@
         const model = document.getElementById("poolModel").value;
 
         if (!baseUrl || !apiKey || !model) {
-          alert("请先填写API地址、密钥和模型名称");
+          showToast("请先填写API地址、密钥和模型名称", "error");
           return;
         }
 
@@ -2312,13 +2397,16 @@
           if (result.success) {
             status.textContent = "✓ " + result.message;
             status.className = "text-sm text-green-600 mb-3";
+            showToast("连接成功", "success");
           } else {
             status.textContent = "✗ " + result.message;
             status.className = "text-sm text-red-600 mb-3";
+            showToast(result.message, "error");
           }
         } catch (e) {
           status.textContent = "✗ 测试失败：" + e.message;
           status.className = "text-sm text-red-600 mb-3";
+          showToast("测试失败：" + e.message, "error");
         }
       }
 
@@ -2327,7 +2415,7 @@
         const apiKey = document.getElementById("poolApiKey").value;
 
         if (!baseUrl || !apiKey) {
-          alert("请先填写API地址和密钥");
+          showToast("请先填写API地址和密钥", "error");
           return;
         }
 
@@ -2372,10 +2460,10 @@
             "/api/admin/knowledge/rebuild-embeddings",
             "POST"
           );
-          alert(`成功重建 ${result.rebuilt} 条知识的向量`);
+          showToast(`成功重建 ${result.rebuilt} 条知识的向量`, "success");
           loadKnowledge();
         } catch (e) {
-          alert("重建失败：" + e.message);
+          showToast("重建失败：" + e.message, "error");
         } finally {
           event.target.disabled = false;
           event.target.innerHTML =
