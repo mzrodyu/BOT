@@ -171,6 +171,7 @@ class ChatService:
             user_message = f"[回复消息: {reply_content}]\n{user_message}"
         
         if image_urls:
+            print(f"[ChatService] Building message with {len(image_urls)} images")
             content = [{"type": "text", "text": user_message}]
             for url in image_urls:
                 content.append({

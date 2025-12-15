@@ -303,6 +303,8 @@ class MessageHandler(commands.Cog):
         pinned_messages = await self.get_pinned_messages(message.channel)
         reply_content = await self.get_reply_content(message)
         image_urls = await self.get_image_urls(message)
+        if image_urls:
+            print(f"[MessageHandler] Found {len(image_urls)} images: {image_urls}")
         guild_emojis = self.get_guild_emojis(message.guild)
         
         request_data = {
