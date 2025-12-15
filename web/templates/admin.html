@@ -528,6 +528,12 @@
             <h1 class="text-3xl font-bold text-gray-800">敏感词管理</h1>
             <div class="flex space-x-2">
               <button
+                onclick="clearAllSensitiveWords()"
+                class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition"
+              >
+                <i class="fas fa-trash-alt mr-2"></i>清空全部
+              </button>
+              <button
                 onclick="showSensitiveImportModal()"
                 class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition"
               >
@@ -1378,6 +1384,19 @@
             ).innerHTML = `将导入 <strong>${lines.length}</strong> 个敏感词（已跳过注释）`;
           };
           reader.readAsText(file);
+        }
+      }
+
+      async function clearAllSensitiveWords() {
+        if (!confirm("确定要清空所有敏感词吗？此操作不可恢复！")) {
+          return;
+        }
+        try {
+          await api("/api/admin/sensitive-words/clear", "DELETE");
+          alert("已清空所有敏感词");
+          loadSensitiveWords();
+        } catch (e) {
+          alert("清空失败: " + e.message);
         }
       }
 

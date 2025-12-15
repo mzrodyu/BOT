@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import delete
 from database import get_db
 from backend.schemas import (
     BlacklistCreate, BlacklistResponse,
@@ -146,6 +147,17 @@ async def add_sensitive_word(
     if not word:
         raise HTTPException(status_code=400, detail="Word already exists")
     return word
+
+
+@router.delete("/sensitive-words/clear")
+async def clear_all_sensitive_words(
+    db: AsyncSession = Depends(get_db),
+    _: bool = Depends(verify_admin)
+):
+    from database.models import SensitiveWord
+    await db.execute(delete(SensitiveWord))
+    await db.commit()
+    return {"success": True}
 
 
 @router.delete("/sensitive-words/{word_id}")
