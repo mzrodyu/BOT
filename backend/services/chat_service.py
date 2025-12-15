@@ -221,6 +221,7 @@ class ChatService:
         
         is_safe, filter_reason = await self.content_filter.check_content(message)
         if not is_safe:
+            print(f"[ContentFilter] Blocked: {filter_reason}, message: {message[:50]}...")
             yield f"[BLOCKED]{filter_reason}"
             return
         
