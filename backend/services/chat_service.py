@@ -163,9 +163,20 @@ class ChatService:
                     # 没有[用户名]标记的是当前用户
                     messages.append({"role": msg["role"], "content": msg["content"]})
         else:
-            # 多用户模式：加载上下文，但限制数量避免混乱
-            # 只加载最近几条消息，优先保留与Bot的交互
-            recent_msgs = context_messages[-10:] if len(context_messages) > 10 else context_messages
+            # 多用户模式：只加载与当前用户相关的对话
+            # 筛选当前用户的消息和Bot的回复
+            current_user_tag = f"[{username}]"
+            relevant_msgs = []
+            for msg in context_messages:
+                if msg["role"] == "assistant":
+                    relevant_msgs.append(msg)
+                elif msg["role"] == "user":
+                    # 只保留当前用户的消息
+                    if msg["content"].startswith(current_user_tag) or not msg["content"].startswith("["):
+                        relevant_msgs.append(msg)
+            
+            # 限制数量
+            recent_msgs = relevant_msgs[-6:] if len(relevant_msgs) > 6 else relevant_msgs
             for msg in recent_msgs:
                 messages.append({"role": msg["role"], "content": msg["content"]})
         
