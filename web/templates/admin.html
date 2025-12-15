@@ -925,17 +925,27 @@
           <label class="block text-sm font-medium text-gray-700 mb-2"
             >对话模式</label
           >
-          <div class="flex space-x-4">
+          <div class="flex flex-col space-y-2">
             <label class="flex items-center">
               <input
                 type="radio"
                 name="chatMode"
-                id="bcChatModeChat"
-                value="chat"
+                id="bcChatModeSingle"
+                value="single"
+                class="mr-2"
+              />
+              <span class="text-sm">单用户聊天（只看当前用户的历史）</span>
+            </label>
+            <label class="flex items-center">
+              <input
+                type="radio"
+                name="chatMode"
+                id="bcChatModeMulti"
+                value="multi"
                 checked
                 class="mr-2"
               />
-              <span class="text-sm">聊天模式（保留上下文）</span>
+              <span class="text-sm">多用户聊天（看频道所有人的历史）</span>
             </label>
             <label class="flex items-center">
               <input
@@ -945,7 +955,7 @@
                 value="qa"
                 class="mr-2"
               />
-              <span class="text-sm">答疑模式（只看当前问题）</span>
+              <span class="text-sm">答疑模式（不看历史，只回答当前问题）</span>
             </label>
           </div>
         </div>
@@ -1822,7 +1832,7 @@
         document.getElementById("bcSystemPrompt").value = "";
         document.getElementById("bcContextLimit").value = "10";
         document.getElementById("bcAdminIds").value = "";
-        document.getElementById("bcChatModeChat").checked = true;
+        document.getElementById("bcChatModeMulti").checked = true;
         document.getElementById("botConfigModal").classList.remove("hidden");
       }
 
@@ -1843,17 +1853,22 @@
         document.getElementById("bcAdminIds").value = config.admin_ids || "";
         if (config.chat_mode === "qa") {
           document.getElementById("bcChatModeQA").checked = true;
+        } else if (config.chat_mode === "single") {
+          document.getElementById("bcChatModeSingle").checked = true;
         } else {
-          document.getElementById("bcChatModeChat").checked = true;
+          document.getElementById("bcChatModeMulti").checked = true;
         }
         document.getElementById("botConfigModal").classList.remove("hidden");
       }
 
       async function saveBotConfig() {
         const botId = editingBotId || document.getElementById("bcBotId").value;
-        const chatMode = document.getElementById("bcChatModeQA").checked
-          ? "qa"
-          : "chat";
+        let chatMode = "multi";
+        if (document.getElementById("bcChatModeQA").checked) {
+          chatMode = "qa";
+        } else if (document.getElementById("bcChatModeSingle").checked) {
+          chatMode = "single";
+        }
         const data = {
           bot_id: botId,
           bot_name: document.getElementById("bcBotName").value,

@@ -76,11 +76,13 @@ class ChatService:
         
         system_content = await self.get_system_prompt()
         
-        # 答疑模式提示
+        # 根据聊天模式添加不同提示
         if chat_mode == "qa":
             system_content += "\n\n【答疑模式】请只关注当前问题，不要参考之前的对话历史。"
+        elif chat_mode == "single":
+            system_content += "\n\n【单用户聊天】只与当前用户对话，历史消息都是同一个用户的。"
         else:
-            # 聊天模式：多用户提示
+            # multi模式
             system_content += "\n\n【多用户聊天】当前频道有多人对话，每条消息前有[用户名]标记。请注意区分不同用户，针对@你或回复你的用户进行回复，不要混淆不同用户的对话。"
         
         if user_memory:
@@ -99,8 +101,22 @@ class ChatService:
         
         messages.append({"role": "system", "content": system_content})
         
-        # 答疑模式不加载上下文
-        if chat_mode != "qa":
+        # 根据模式加载上下文
+        if chat_mode == "qa":
+            # 答疑模式不加载上下文
+            pass
+        elif chat_mode == "single":
+            # 单用户模式：只加载Bot的回复和当前用户的消息
+            for msg in context_messages:
+                # assistant消息（Bot回复）始终加载
+                # user消息只加载没有用户名标记的（当前用户）
+                if msg["role"] == "assistant":
+                    messages.append({"role": msg["role"], "content": msg["content"]})
+                elif msg["role"] == "user" and not msg["content"].startswith("["):
+                    # 没有[用户名]标记的是当前用户
+                    messages.append({"role": msg["role"], "content": msg["content"]})
+        else:
+            # 多用户模式：加载所有上下文
             for msg in context_messages:
                 messages.append({"role": msg["role"], "content": msg["content"]})
         
