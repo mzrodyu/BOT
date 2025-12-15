@@ -31,7 +31,15 @@ async def init_db():
                 )
             )
         except:
-            pass  # 字段已存在
+            pass
+        try:
+            await conn.execute(
+                __import__('sqlalchemy').text(
+                    "ALTER TABLE bot_config ADD COLUMN chat_mode TEXT DEFAULT 'chat'"
+                )
+            )
+        except:
+            pass
 
 
 async def get_db():

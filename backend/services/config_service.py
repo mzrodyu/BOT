@@ -104,7 +104,8 @@ class ConfigService:
         system_prompt: str = None,
         context_limit: int = None,
         is_active: bool = None,
-        admin_ids: str = None
+        admin_ids: str = None,
+        chat_mode: str = None
     ) -> BotConfig:
         config = await self.get_or_create_bot_config(bot_id)
         
@@ -118,6 +119,8 @@ class ConfigService:
             config.is_active = is_active
         if admin_ids is not None:
             config.admin_ids = admin_ids
+        if chat_mode is not None:
+            config.chat_mode = chat_mode
         
         await self.db.commit()
         await self.db.refresh(config)

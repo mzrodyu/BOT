@@ -288,7 +288,8 @@ async def update_bot_config(
         system_prompt=request.system_prompt,
         context_limit=request.context_limit,
         is_active=request.is_active,
-        admin_ids=request.admin_ids
+        admin_ids=request.admin_ids,
+        chat_mode=request.chat_mode
     )
 
 

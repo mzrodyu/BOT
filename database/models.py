@@ -126,6 +126,7 @@ class BotConfig(Base):
     system_prompt = Column(Text)  # 人设
     context_limit = Column(Integer, default=10)  # 上下文条数
     admin_ids = Column(Text)  # 逗号分隔的管理员ID
+    chat_mode = Column(String(20), default="chat")  # chat=聊天模式, qa=答疑模式
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

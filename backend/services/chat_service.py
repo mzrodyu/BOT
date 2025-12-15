@@ -51,6 +51,13 @@ class ChatService:
         llm_config = await self.config_service.get_llm_config()
         return llm_config["model"]
     
+    async def get_chat_mode(self) -> str:
+        """获取对话模式"""
+        config = await self.config_service.get_bot_config(self.bot_id)
+        if config and hasattr(config, 'chat_mode') and config.chat_mode:
+            return config.chat_mode
+        return "chat"
+    
     async def get_system_prompt(self) -> str:
         """获取Bot的系统提示词"""
         bot_config = await self.config_service.get_bot_config(self.bot_id)
@@ -73,11 +80,16 @@ class ChatService:
         user_memory: str,
         knowledge_results: List[str],
         image_urls: List[str],
-        guild_emojis: str = None
+        guild_emojis: str = None,
+        chat_mode: str = "chat"
     ) -> List[Dict]:
         messages = []
         
         system_content = await self.get_system_prompt()
+        
+        # 答疑模式提示
+        if chat_mode == "qa":
+            system_content += "\n\n【答疑模式】请只关注当前问题，不要参考之前的对话历史。"
         
         if user_memory:
             system_content += f"\n\n关于当前用户的记忆：\n{user_memory}"
@@ -95,8 +107,10 @@ class ChatService:
         
         messages.append({"role": "system", "content": system_content})
         
-        for msg in context_messages:
-            messages.append({"role": msg["role"], "content": msg["content"]})
+        # 答疑模式不加载上下文
+        if chat_mode != "qa":
+            for msg in context_messages:
+                messages.append({"role": msg["role"], "content": msg["content"]})
         
         if reply_content:
             user_message = f"[回复消息: {reply_content}]\n{user_message}"
@@ -150,6 +164,8 @@ class ChatService:
         kb_results = await self.knowledge_service.search(message)
         knowledge_texts = [f"【{kb.title}】\n{kb.content}" for kb in kb_results]
         
+        chat_mode = await self.get_chat_mode()
+        
         messages = await self.build_messages(
             user_message=message,
             context_messages=context_messages or [],
@@ -158,7 +174,8 @@ class ChatService:
             user_memory=user_memory,
             knowledge_results=knowledge_texts,
             image_urls=image_urls or [],
-            guild_emojis=guild_emojis
+            guild_emojis=guild_emojis,
+            chat_mode=chat_mode
         )
         
         try:
@@ -215,6 +232,8 @@ class ChatService:
         kb_results = await self.knowledge_service.search(message)
         knowledge_texts = [f"【{kb.title}】\n{kb.content}" for kb in kb_results]
         
+        chat_mode = await self.get_chat_mode()
+        
         messages = await self.build_messages(
             user_message=message,
             context_messages=context_messages or [],
@@ -223,7 +242,8 @@ class ChatService:
             user_memory=user_memory,
             knowledge_results=knowledge_texts,
             image_urls=image_urls or [],
-            guild_emojis=guild_emojis
+            guild_emojis=guild_emojis,
+            chat_mode=chat_mode
         )
         
         try:
@@ -231,7 +251,7 @@ class ChatService:
             model = await self.get_model()
             full_response = ""
             
-            print(f"[ChatService] Using model: {model}")
+            print(f"[ChatService] Using model: {model}, mode: {chat_mode}")
             print(f"[ChatService] Messages count: {len(messages)}")
             
             # 构建请求参数
