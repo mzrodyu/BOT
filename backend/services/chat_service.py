@@ -163,8 +163,10 @@ class ChatService:
                     # 没有[用户名]标记的是当前用户
                     messages.append({"role": msg["role"], "content": msg["content"]})
         else:
-            # 多用户模式：加载所有上下文
-            for msg in context_messages:
+            # 多用户模式：加载上下文，但限制数量避免混乱
+            # 只加载最近几条消息，优先保留与Bot的交互
+            recent_msgs = context_messages[-10:] if len(context_messages) > 10 else context_messages
+            for msg in recent_msgs:
                 messages.append({"role": msg["role"], "content": msg["content"]})
         
         if reply_content:
