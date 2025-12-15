@@ -436,6 +436,43 @@ async def update_embedding_config(
     return {"success": True}
 
 
+@router.post("/embedding-config/test")
+async def test_embedding_connection(
+    request: dict,
+    _: bool = Depends(verify_admin)
+):
+    """测试向量化服务连接"""
+    import httpx
+    
+    base_url = request.get("base_url", "").rstrip("/")
+    api_key = request.get("api_key", "")
+    model = request.get("model", "")
+    
+    if not base_url or not api_key or not model:
+        return {"success": False, "message": "请填写完整的API地址、密钥和模型名称"}
+    
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                f"{base_url}/embeddings",
+                headers={"Authorization": f"Bearer {api_key}"},
+                json={
+                    "model": model,
+                    "input": "测试连接"
+                }
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                if "data" in data and len(data["data"]) > 0:
+                    return {"success": True, "message": f"连接成功，向量维度: {len(data['data'][0].get('embedding', []))}"}
+                return {"success": True, "message": "连接成功"}
+            else:
+                return {"success": False, "message": f"API返回错误: {response.status_code} - {response.text[:200]}"}
+    except Exception as e:
+        return {"success": False, "message": f"连接失败: {str(e)}"}
+
+
 @router.get("/llm-models")
 async def get_llm_models(
     db: AsyncSession = Depends(get_db),
