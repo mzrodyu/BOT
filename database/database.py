@@ -22,6 +22,16 @@ AsyncSessionLocal = async_sessionmaker(
 async def init_db():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        
+        # 自动添加缺失的字段
+        try:
+            await conn.execute(
+                __import__('sqlalchemy').text(
+                    "ALTER TABLE bot_config ADD COLUMN admin_ids TEXT"
+                )
+            )
+        except:
+            pass  # 字段已存在
 
 
 async def get_db():
