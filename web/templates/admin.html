@@ -1415,18 +1415,35 @@
           return;
         }
 
+        const preview = document.getElementById("sensitiveImportPreview");
+        const importBtn = document.querySelector(
+          '#sensitiveImportModal button[onclick="doSensitiveImport()"]'
+        );
+        importBtn.disabled = true;
+        importBtn.innerHTML =
+          '<i class="fas fa-spinner fa-spin mr-2"></i>导入中...';
+
         let success = 0;
-        for (const word of words) {
+        for (let i = 0; i < words.length; i++) {
           try {
             await api("/api/admin/sensitive-words", "POST", {
-              word: word,
+              word: words[i],
               category: category || "导入",
             });
             success++;
           } catch (e) {}
+
+          // 每10个更新一次进度
+          if (i % 10 === 0 || i === words.length - 1) {
+            preview.innerHTML = `正在导入... <strong>${i + 1}/${
+              words.length
+            }</strong> (成功: ${success})`;
+          }
         }
 
-        alert(`成功导入 ${success}/${words.length} 个敏感词`);
+        importBtn.disabled = false;
+        importBtn.innerHTML = "导入";
+        alert(`导入完成！成功 ${success}/${words.length} 个敏感词`);
         hideSensitiveImportModal();
         loadSensitiveWords();
       }
