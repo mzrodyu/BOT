@@ -339,7 +339,20 @@
 
         <!-- Memories -->
         <div id="memories" class="tab-content">
-          <h1 class="text-3xl font-bold text-gray-800 mb-6">用户记忆</h1>
+          <div class="flex justify-between items-center mb-6">
+            <h1 class="text-3xl font-bold text-gray-800">用户记忆</h1>
+            <div class="flex space-x-2">
+              <select id="userSelect" class="px-4 py-2 border rounded-lg">
+                <option value="">选择用户...</option>
+              </select>
+              <button
+                onclick="summarizeUser()"
+                class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
+              >
+                <i class="fas fa-brain mr-2"></i>汇总记忆
+              </button>
+            </div>
+          </div>
           <div class="bg-white rounded-xl shadow-sm overflow-hidden">
             <table class="w-full">
               <thead class="bg-gray-50">
@@ -961,10 +974,28 @@
       }
 
       async function loadMemories() {
+        // 加载用户列表
+        try {
+          const users = await api("/api/admin/users");
+          const userSelect = document.getElementById("userSelect");
+          userSelect.innerHTML =
+            '<option value="">选择用户...</option>' +
+            users
+              .map(
+                (u) =>
+                  `<option value="${u.discord_id}">${u.username} (${u.discord_id})</option>`
+              )
+              .join("");
+        } catch (e) {}
+
+        // 加载记忆列表
         const data = await api("/api/admin/memories");
-        document.getElementById("memoriesTable").innerHTML = data
-          .map(
-            (m) => `
+        document.getElementById("memoriesTable").innerHTML =
+          data.length === 0
+            ? '<tr><td colspan="3" class="px-6 py-4 text-center text-gray-500">暂无记忆，选择用户后点击"汇总记忆"生成</td></tr>'
+            : data
+                .map(
+                  (m) => `
                 <tr>
                     <td class="px-6 py-4 text-sm text-gray-900">${
                       m.user_id
@@ -977,8 +1008,33 @@
                     ).toLocaleString()}</td>
                 </tr>
             `
-          )
-          .join("");
+                )
+                .join("");
+      }
+
+      async function summarizeUser() {
+        const discordId = document.getElementById("userSelect").value;
+        if (!discordId) {
+          alert("请先选择用户");
+          return;
+        }
+        try {
+          const btn = event.target;
+          btn.disabled = true;
+          btn.innerHTML =
+            '<i class="fas fa-spinner fa-spin mr-2"></i>汇总中...';
+          await api(`/api/admin/memories/summarize/${discordId}`, "POST");
+          alert("汇总成功！");
+          loadMemories();
+        } catch (e) {
+          alert("汇总失败: " + e.message);
+        } finally {
+          const btn = document.querySelector(
+            'button[onclick="summarizeUser()"]'
+          );
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fas fa-brain mr-2"></i>汇总记忆';
+        }
       }
 
       async function loadSensitiveWords() {
