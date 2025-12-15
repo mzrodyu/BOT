@@ -301,3 +301,35 @@ async def update_llm_config(
         model=request.model
     )
     return {"success": True}
+
+
+@router.get("/llm-models")
+async def get_llm_models(
+    db: AsyncSession = Depends(get_db),
+    _: bool = Depends(verify_admin)
+):
+    """从LLM API获取可用模型列表"""
+    import httpx
+    service = ConfigService(db)
+    config = await service.get_llm_config()
+    
+    base_url = config.get("base_url", "").rstrip("/")
+    api_key = config.get("api_key", "")
+    
+    if not base_url or not api_key:
+        raise HTTPException(status_code=400, detail="请先配置API地址和密钥")
+    
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.get(
+                f"{base_url}/models",
+                headers={"Authorization": f"Bearer {api_key}"}
+            )
+            if resp.status_code != 200:
+                raise HTTPException(status_code=resp.status_code, detail="获取模型列表失败")
+            
+            data = resp.json()
+            models = data.get("data", [])
+            return {"models": [m.get("id") for m in models if m.get("id")]}
+    except httpx.RequestError as e:
+        raise HTTPException(status_code=500, detail=f"请求失败: {str(e)}")
