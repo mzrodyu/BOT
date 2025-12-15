@@ -182,7 +182,7 @@ class ChatService:
                 messages.append({"role": msg["role"], "content": msg["content"]})
         
         if reply_content:
-            user_message = f"[回复消息: {reply_content}]\n{user_message}"
+            user_message = f"【用户引用了以下消息并针对它提问】\n引用内容：「{reply_content}」\n用户的问题：{user_message}"
         
         if image_urls:
             print(f"[ChatService] Building message with {len(image_urls)} images")
