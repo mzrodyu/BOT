@@ -162,7 +162,7 @@ class MessageHandler(commands.Cog):
     async def send_streaming_response(self, message: discord.Message, request_data: dict):
         import time
         start_time = time.time()
-        reply_msg = await message.reply("思考中...", mention_author=False)
+        reply_msg = await message.reply("💭 思考中...", mention_author=False)
         full_response = ""
         last_update = 0
         update_interval = 0.8  # 每0.8秒更新一次，减少卡顿
