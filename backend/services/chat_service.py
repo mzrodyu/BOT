@@ -234,12 +234,22 @@ class ChatService:
             print(f"[ChatService] Using model: {model}")
             print(f"[ChatService] Messages count: {len(messages)}")
             
-            stream = await client.chat.completions.create(
-                model=model,
-                messages=messages,
-                max_tokens=4096,
-                stream=True
-            )
+            # 构建请求参数
+            request_params = {
+                "model": model,
+                "messages": messages,
+                "max_tokens": 16000,
+                "stream": True
+            }
+            
+            # thinking模型需要特殊参数
+            if "thinking" in model.lower():
+                request_params["thinking"] = {
+                    "type": "enabled",
+                    "budget_tokens": 10000
+                }
+            
+            stream = await client.chat.completions.create(**request_params)
             
             async for chunk in stream:
                 if chunk.choices:

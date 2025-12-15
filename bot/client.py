@@ -210,9 +210,9 @@ class MessageHandler(commands.Cog):
                     # 处理服务器表情
                     full_response = await self.process_emojis(full_response, message.guild)
                     
-                    # 计算统计信息
+                    # 计算统计信息（小字体格式）
                     elapsed = time.time() - start_time
-                    stats = f"\n`Time: {elapsed:.1f}s`"
+                    stats = f"\n-# Time: {elapsed:.1f}s"
                     
                     if len(full_response) > 2000 - len(stats):
                         chunks = [full_response[i:i+1950] for i in range(0, len(full_response), 1950)]
