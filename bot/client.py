@@ -27,9 +27,6 @@ class CatieBot(commands.Bot):
     async def setup_hook(self):
         await self.add_cog(MessageHandler(self))
         await self.add_cog(AdminCommands(self))
-        # 全局同步（作为备份，1小时内生效）
-        synced = await self.tree.sync()
-        print(f"Global synced {len(synced)} commands", flush=True)
     
     async def on_ready(self):
         print(f"Logged in as {self.user} (ID: {self.user.id})", flush=True)
