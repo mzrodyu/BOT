@@ -2315,15 +2315,18 @@
         document.getElementById("knowledgeModal").classList.add("hidden");
       }
 
-      function editKnowledge(id) {
-        const kb = knowledgeData.find((k) => k.id === id);
-        if (kb) {
+      async function editKnowledge(id) {
+        try {
+          // 获取完整内容
+          const kb = await api(`/api/admin/knowledge/${id}`);
           editingKbId = id;
           document.getElementById("kbTitle").value = kb.title || "";
           document.getElementById("kbContent").value = kb.content || "";
           document.getElementById("kbKeywords").value = kb.keywords || "";
           document.getElementById("kbCategory").value = kb.category || "";
           document.getElementById("knowledgeModal").classList.remove("hidden");
+        } catch (e) {
+          showToast("获取知识详情失败: " + e.message, "error");
         }
       }
       function showBlacklistModal() {

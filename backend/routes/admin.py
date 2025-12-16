@@ -589,6 +589,27 @@ async def rebuild_knowledge_embeddings(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/knowledge/{kb_id}")
+async def get_knowledge_detail(
+    kb_id: int,
+    db: AsyncSession = Depends(get_db),
+    _: bool = Depends(verify_admin)
+):
+    """获取单条知识的完整内容"""
+    service = KnowledgeService(db)
+    kb = await service.get_by_id(kb_id)
+    if not kb:
+        raise HTTPException(status_code=404, detail="知识不存在")
+    return {
+        "id": kb.id,
+        "title": kb.title,
+        "content": kb.content,
+        "keywords": kb.keywords,
+        "category": kb.category,
+        "has_embedding": kb.embedding is not None,
+        "is_active": kb.is_active
+    }
+
 @router.get("/knowledge")
 async def get_knowledge_list(
     skip: int = 0,
