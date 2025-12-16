@@ -28,11 +28,11 @@ class CatieBot(commands.Bot):
         await self.add_cog(AdminCommands(self))
         # 同步斜杠命令
         synced = await self.tree.sync()
-        print(f"Synced {len(synced)} slash commands: {[c.name for c in synced]}")
+        print(f"Synced {len(synced)} slash commands: {[c.name for c in synced]}", flush=True)
     
     async def on_ready(self):
-        print(f"Logged in as {self.user} (ID: {self.user.id})")
-        print(f"Connected to {len(self.guilds)} guilds")
+        print(f"Logged in as {self.user} (ID: {self.user.id})", flush=True)
+        print(f"Connected to {len(self.guilds)} guilds", flush=True)
         await self.change_presence(
             activity=discord.Activity(
                 type=discord.ActivityType.listening,
@@ -108,9 +108,9 @@ class CatieBot(commands.Bot):
                 },
                 headers={"X-Admin-Secret": settings.admin_password}
             )
-            print(f"Reported {sum(len(g['channels']) for g in channels_data)} channels to backend")
+            print(f"Reported {sum(len(g['channels']) for g in channels_data)} channels to backend", flush=True)
         except Exception as e:
-            print(f"Error reporting channels: {e}")
+            print(f"Error reporting channels: {e}", flush=True)
     
     async def close(self):
         await self.http_client.aclose()
