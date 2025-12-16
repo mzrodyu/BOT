@@ -1,0 +1,7 @@
+{
+  "bot_token": "你的Discord Bot Token",
+  "bot_id": "catiebot",
+  "backend_url": "http://backend:8000",
+  "admin_password": "你的管理员密码",
+  "developer_ids": ["你的Discord用户ID"]
+}

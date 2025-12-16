@@ -1,0 +1,13 @@
+.git
+.gitignore
+__pycache__
+*.pyc
+*.pyo
+*.db
+.env
+*.log
+.vscode
+.idea
+data/
+config.json
+README.md

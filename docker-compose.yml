@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: catiebot-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./config.json:/app/config.json
+    environment:
+      - TZ=Asia/Shanghai
+    command: python run_backend.py
+
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: catiebot-bot
+    restart: unless-stopped
+    volumes:
+      - ./data:/app/data
+      - ./config.json:/app/config.json
+    environment:
+      - TZ=Asia/Shanghai
+    depends_on:
+      - backend
+    command: python run_bot.py
