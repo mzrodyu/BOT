@@ -2438,9 +2438,10 @@
         try {
           const config = await api("/api/admin/llm-config");
           document.getElementById("llmBaseUrl").value = config.base_url || "";
-          document.getElementById("llmApiKey").value = config.api_key
-            ? "********"
-            : "";
+          // 显示与密钥长度相当的星号，让用户知道密钥已保存
+          const keyLen = config.api_key ? config.api_key.length : 0;
+          document.getElementById("llmApiKey").value =
+            keyLen > 0 ? "*".repeat(Math.min(keyLen, 50)) : "";
           document.getElementById("llmModelCustom").value = config.model || "";
           document.getElementById("llmStream").checked =
             config.stream !== false;
@@ -2491,7 +2492,8 @@
           model: model,
           stream: stream,
         };
-        if (apiKey && apiKey !== "********") {
+        // 如果密钥不是全星号占位符，才传递密钥
+        if (apiKey && !/^\*+$/.test(apiKey)) {
           data.api_key = apiKey;
         }
 
@@ -2521,8 +2523,8 @@
         try {
           // 使用当前输入框的值拉取模型
           const params = new URLSearchParams({ base_url: baseUrl });
-          // 如果密钥不是占位符，才传递密钥
-          if (apiKey && apiKey !== "********") {
+          // 如果密钥不是全星号占位符，才传递密钥
+          if (apiKey && !/^\*+$/.test(apiKey)) {
             params.set("api_key", apiKey);
           }
           const result = await api(`/api/admin/llm-models?${params}`);
