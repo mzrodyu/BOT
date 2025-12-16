@@ -8,12 +8,13 @@ services:
     container_name: catiebot-backend
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      - '${PORT:-8000}:${PORT:-8000}'
     volumes:
       - ./data:/app/data
       - ./config.json:/app/config.json
     environment:
       - TZ=Asia/Shanghai
+      - PORT=${PORT:-8000}
     command: python run_backend.py
 
   bot:
