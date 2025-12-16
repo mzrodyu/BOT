@@ -1740,7 +1740,7 @@
         }
         if (!confirm(`确定删除选中的 ${kbSelectedIds.size} 条知识？`)) return;
         try {
-          await api("/api/admin/knowledge/batch", "DELETE", {
+          await api("/api/admin/knowledge/batch-delete", "POST", {
             ids: Array.from(kbSelectedIds),
           });
           showToast(`已删除 ${kbSelectedIds.size} 条知识`, "success");
@@ -2061,7 +2061,7 @@
         if (!confirm(`确定删除选中的 ${sensitiveSelectedIds.size} 个敏感词？`))
           return;
         try {
-          await api("/api/admin/sensitive-words/batch", "DELETE", {
+          await api("/api/admin/sensitive-words/batch-delete", "POST", {
             ids: Array.from(sensitiveSelectedIds),
           });
           showToast(`已删除 ${sensitiveSelectedIds.size} 个敏感词`, "success");

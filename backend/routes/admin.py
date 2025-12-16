@@ -249,7 +249,7 @@ async def batch_update_category(
     return {"success": True, "updated": count}
 
 
-@router.delete("/sensitive-words/batch")
+@router.post("/sensitive-words/batch-delete")
 async def batch_delete_sensitive_words(
     request: dict,
     db: AsyncSession = Depends(get_db),
@@ -665,7 +665,7 @@ async def batch_update_knowledge_category(
     return {"success": True, "updated": count}
 
 
-@router.delete("/knowledge/batch")
+@router.post("/knowledge/batch-delete")
 async def batch_delete_knowledge(
     request: dict,
     db: AsyncSession = Depends(get_db),
