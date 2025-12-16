@@ -475,19 +475,25 @@ async def test_embedding_connection(
 
 @router.get("/llm-models")
 async def get_llm_models(
+    base_url: str = None,
+    api_key: str = None,
     db: AsyncSession = Depends(get_db),
     _: bool = Depends(verify_admin)
 ):
-    """从LLM API获取可用模型列表"""
+    """从LLM API获取可用模型列表，支持传入临时配置或使用已保存配置"""
     import httpx
-    service = ConfigService(db)
-    config = await service.get_llm_config()
     
-    base_url = config.get("base_url", "").rstrip("/")
-    api_key = config.get("api_key", "")
+    # 如果没有传入参数，使用已保存的配置
+    if not base_url or not api_key:
+        service = ConfigService(db)
+        config = await service.get_llm_config()
+        base_url = base_url or config.get("base_url", "")
+        api_key = api_key or config.get("api_key", "")
+    
+    base_url = base_url.rstrip("/") if base_url else ""
     
     if not base_url or not api_key:
-        raise HTTPException(status_code=400, detail="请先配置API地址和密钥")
+        raise HTTPException(status_code=400, detail="请先填写API地址和密钥")
     
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
@@ -526,26 +532,32 @@ async def rebuild_knowledge_embeddings(
 @router.get("/knowledge")
 async def get_knowledge_list(
     skip: int = 0,
-    limit: int = 100,
+    limit: int = 20,
     db: AsyncSession = Depends(get_db),
     _: bool = Depends(verify_admin)
 ):
-    """获取知识库列表"""
+    """获取知识库列表（带分页）"""
     service = KnowledgeService(db)
     items = await service.get_all(skip, limit)
-    return [
-        {
-            "id": kb.id,
-            "title": kb.title,
-            "content": kb.content[:200] + "..." if len(kb.content) > 200 else kb.content,
-            "keywords": kb.keywords,
-            "category": kb.category,
-            "has_embedding": kb.embedding is not None,
-            "is_active": kb.is_active,
-            "created_at": kb.created_at.isoformat() if kb.created_at else None
-        }
-        for kb in items
-    ]
+    total = await service.get_total_count()
+    return {
+        "items": [
+            {
+                "id": kb.id,
+                "title": kb.title,
+                "content": kb.content[:200] + "..." if len(kb.content) > 200 else kb.content,
+                "keywords": kb.keywords,
+                "category": kb.category,
+                "has_embedding": kb.embedding is not None,
+                "is_active": kb.is_active,
+                "created_at": kb.created_at.isoformat() if kb.created_at else None
+            }
+            for kb in items
+        ],
+        "total": total,
+        "skip": skip,
+        "limit": limit
+    }
 
 
 @router.post("/knowledge")

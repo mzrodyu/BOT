@@ -261,7 +261,12 @@
         <!-- Knowledge Base -->
         <div id="knowledge" class="tab-content">
           <div class="flex justify-between items-center mb-6">
-            <h1 class="text-3xl font-bold text-gray-800">知识库管理</h1>
+            <div>
+              <h1 class="text-3xl font-bold text-gray-800">知识库管理</h1>
+              <p id="knowledgeCount" class="text-sm text-gray-500 mt-1">
+                共 0 条知识
+              </p>
+            </div>
             <div class="flex space-x-2">
               <button
                 onclick="rebuildKnowledgeEmbeddings()"
@@ -319,6 +324,37 @@
                 class="divide-y divide-gray-200"
               ></tbody>
             </table>
+            <!-- 分页 -->
+            <div
+              id="knowledgePagination"
+              class="flex items-center justify-between px-6 py-3 bg-gray-50 border-t"
+            >
+              <div class="text-sm text-gray-500">
+                显示 <span id="kbShowingStart">0</span>-<span id="kbShowingEnd"
+                  >0</span
+                >
+                / <span id="kbTotalItems">0</span> 条
+              </div>
+              <div class="flex space-x-2">
+                <button
+                  onclick="loadKnowledge(knowledgePage - 1)"
+                  id="kbPrevBtn"
+                  class="px-3 py-1 border rounded hover:bg-gray-100 disabled:opacity-50"
+                  disabled
+                >
+                  上一页
+                </button>
+                <span id="kbPageInfo" class="px-3 py-1 text-sm">第 1 页</span>
+                <button
+                  onclick="loadKnowledge(knowledgePage + 1)"
+                  id="kbNextBtn"
+                  class="px-3 py-1 border rounded hover:bg-gray-100 disabled:opacity-50"
+                  disabled
+                >
+                  下一页
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -1384,13 +1420,13 @@
         try {
           const [users, knowledge, blacklist, channels] = await Promise.all([
             api("/api/admin/users"),
-            api("/api/knowledge/"),
+            api("/api/admin/knowledge?limit=1"),
             api("/api/admin/blacklist"),
             api("/api/admin/channels"),
           ]);
           document.getElementById("statUsers").textContent = users.length;
           document.getElementById("statKnowledge").textContent =
-            knowledge.length;
+            knowledge.total || 0;
           document.getElementById("statBlacklist").textContent =
             blacklist.length;
           document.getElementById("statChannels").textContent = channels.length;
@@ -1400,13 +1436,48 @@
       }
 
       let knowledgeData = [];
+      let knowledgePage = 0;
+      const knowledgePageSize = 20;
 
-      async function loadKnowledge() {
-        const data = await api("/api/knowledge/");
-        knowledgeData = data;
-        document.getElementById("knowledgeTable").innerHTML = data
-          .map(
-            (kb) => `
+      async function loadKnowledge(page = 0) {
+        if (page < 0) page = 0;
+        knowledgePage = page;
+        const skip = page * knowledgePageSize;
+
+        try {
+          const result = await api(
+            `/api/admin/knowledge?skip=${skip}&limit=${knowledgePageSize}`
+          );
+          const data = result.items || [];
+          const total = result.total || 0;
+          knowledgeData = data;
+
+          // 更新总数显示
+          document.getElementById(
+            "knowledgeCount"
+          ).textContent = `共 ${total} 条知识`;
+
+          // 更新分页信息
+          const start = total > 0 ? skip + 1 : 0;
+          const end = Math.min(skip + data.length, total);
+          document.getElementById("kbShowingStart").textContent = start;
+          document.getElementById("kbShowingEnd").textContent = end;
+          document.getElementById("kbTotalItems").textContent = total;
+          document.getElementById("kbPageInfo").textContent = `第 ${
+            page + 1
+          } 页`;
+
+          // 更新分页按钮状态
+          document.getElementById("kbPrevBtn").disabled = page === 0;
+          document.getElementById("kbNextBtn").disabled = end >= total;
+
+          // 渲染表格
+          document.getElementById("knowledgeTable").innerHTML =
+            data.length === 0
+              ? '<tr><td colspan="5" class="px-6 py-8 text-center text-gray-500">暂无知识条目</td></tr>'
+              : data
+                  .map(
+                    (kb) => `
                 <tr>
                     <td class="px-6 py-4 text-sm text-gray-900">${kb.title}</td>
                     <td class="px-6 py-4 text-sm text-gray-500">${
@@ -1423,6 +1494,11 @@
                         }">
                             ${kb.is_active ? "启用" : "禁用"}
                         </span>
+                        ${
+                          kb.has_embedding
+                            ? '<span class="ml-1 px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800">向量</span>'
+                            : ""
+                        }
                     </td>
                     <td class="px-6 py-4">
                         <button onclick="editKnowledge(${
@@ -1438,8 +1514,12 @@
                     </td>
                 </tr>
             `
-          )
-          .join("");
+                  )
+                  .join("");
+        } catch (e) {
+          console.error("Load knowledge error:", e);
+          showToast("加载知识库失败", "error");
+        }
       }
 
       async function loadBlacklist() {
@@ -1495,9 +1575,9 @@
                       ch.guild_id
                     }</td>
                     <td class="px-6 py-4">
-                        <button onclick="removeChannel('${
-                          ch.channel_id
-                        }')" class="text-red-600 hover:text-red-800">
+                        <button onclick="removeChannel('${ch.bot_id}', '${
+              ch.channel_id
+            }')" class="text-red-600 hover:text-red-800">
                             <i class="fas fa-trash"></i>
                         </button>
                     </td>
@@ -1790,7 +1870,18 @@
           return;
         }
 
+        // 添加loading状态
+        const importBtn = document.querySelector(
+          '#importModal button[onclick="doImport()"]'
+        );
+        const preview = document.getElementById("importPreview");
+        importBtn.disabled = true;
+        importBtn.innerHTML =
+          '<i class="fas fa-spinner fa-spin mr-2"></i>导入中...';
+        preview.innerHTML = `正在导入 <strong>0/${parts.length}</strong> 条知识...`;
+
         let success = 0;
+        let failed = 0;
         for (const part of parts) {
           const lines = part.split("\n");
           const title = lines[0].replace(/^#+\s*/, "").substring(0, 100);
@@ -1803,10 +1894,22 @@
               category: category || "导入",
             });
             success++;
-          } catch (e) {}
+          } catch (e) {
+            failed++;
+          }
+          preview.innerHTML = `正在导入 <strong>${success + failed}/${
+            parts.length
+          }</strong> 条知识...`;
         }
 
-        showToast(`成功导入 ${success}/${parts.length} 条知识`, "success");
+        importBtn.disabled = false;
+        importBtn.innerHTML = "导入";
+
+        if (success > 0) {
+          showToast(`成功导入 ${success}/${parts.length} 条知识`, "success");
+        } else {
+          showToast(`导入失败，请检查内容格式`, "error");
+        }
         hideImportModal();
         loadKnowledge();
       }
@@ -1917,9 +2020,9 @@
         loadChannels();
       }
 
-      async function removeChannel(channelId) {
+      async function removeChannel(botId, channelId) {
         if (confirm("确定移除？")) {
-          await api(`/api/admin/channels/${channelId}`, "DELETE");
+          await api(`/api/admin/channels/${botId}/${channelId}`, "DELETE");
           loadChannels();
         }
       }
@@ -1927,13 +2030,19 @@
       async function fetchBotChannels() {
         const botId = document.getElementById("chBotId").value || "yu";
         const tree = document.getElementById("channelTree");
-        tree.innerHTML = '<p class="text-gray-500">正在获取...</p>';
+        tree.innerHTML =
+          '<p class="text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>正在获取...</p>';
 
         try {
           const guilds = await api(`/api/admin/bot-channels/${botId}`);
           if (!guilds || guilds.length === 0) {
-            tree.innerHTML =
-              '<p class="text-gray-500">暂无数据，请先启动Bot</p>';
+            tree.innerHTML = `
+              <div class="text-center py-4">
+                <i class="fas fa-robot text-gray-400 text-2xl mb-2"></i>
+                <p class="text-gray-500 text-sm">暂无频道数据</p>
+                <p class="text-gray-400 text-xs mt-1">请确保 Bot (ID: ${botId}) 已启动并连接到Discord</p>
+                <p class="text-gray-400 text-xs">Bot启动后会自动上报频道列表</p>
+              </div>`;
             return;
           }
 
@@ -1956,7 +2065,8 @@
           }
           tree.innerHTML = html;
         } catch (e) {
-          tree.innerHTML = '<p class="text-red-500">获取失败</p>';
+          tree.innerHTML =
+            '<p class="text-red-500"><i class="fas fa-exclamation-circle mr-1"></i>获取失败，请检查网络连接</p>';
         }
       }
 
@@ -2055,11 +2165,25 @@
 
       async function fetchModels() {
         const status = document.getElementById("modelStatus");
+        const baseUrl = document.getElementById("llmBaseUrl").value;
+        const apiKey = document.getElementById("llmApiKey").value;
+
+        if (!baseUrl || !apiKey || apiKey === "********") {
+          status.textContent = "请先填写API地址和密钥";
+          status.className = "text-sm text-red-500 mt-1";
+          return;
+        }
+
         status.textContent = "正在获取模型列表...";
         status.className = "text-sm text-blue-500 mt-1";
 
         try {
-          const result = await api("/api/admin/llm-models");
+          // 使用当前输入框的值拉取模型
+          const params = new URLSearchParams({
+            base_url: baseUrl,
+            api_key: apiKey,
+          });
+          const result = await api(`/api/admin/llm-models?${params}`);
           const select = document.getElementById("llmModel");
           select.innerHTML = '<option value="">请选择模型</option>';
 

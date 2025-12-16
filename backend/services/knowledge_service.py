@@ -184,3 +184,12 @@ class KnowledgeService:
         
         result = await self.db.execute(query)
         return result.scalars().all()
+    
+    async def get_total_count(self, active_only: bool = False) -> int:
+        """获取知识库条目总数"""
+        from sqlalchemy import func
+        query = select(func.count(KnowledgeBase.id))
+        if active_only:
+            query = query.where(KnowledgeBase.is_active == True)
+        result = await self.db.execute(query)
+        return result.scalar() or 0
