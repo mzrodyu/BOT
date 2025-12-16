@@ -3,14 +3,18 @@ from discord.ext import commands
 from discord import app_commands
 import httpx
 import json
+import os
 from config import get_settings
 from typing import Optional, List
 
 settings = get_settings()
-# 确保 backend_url 没有尾部斜杠
-if settings.backend_url:
-    settings.backend_url = settings.backend_url.rstrip('/')
-print(f"[Config] backend_url={settings.backend_url}, bot_id={settings.bot_id}", flush=True)
+
+# 直接从环境变量读取，作为备用
+BACKEND_URL = os.getenv("BACKEND_URL", settings.backend_url).rstrip('/')
+BOT_ID = os.getenv("BOT_ID", settings.bot_id)
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", settings.admin_password)
+
+print(f"[Config] BACKEND_URL={BACKEND_URL}, BOT_ID={BOT_ID}", flush=True)
 
 
 class CatieBot(commands.Bot):
@@ -121,12 +125,12 @@ class CatieBot(commands.Bot):
                 channels_data.append(guild_data)
             
             await self.http_client.post(
-                f"{settings.backend_url}/api/admin/bot-channels",
+                f"{BACKEND_URL}/api/admin/bot-channels",
                 json={
-                    "bot_id": settings.bot_id,
+                    "bot_id": BOT_ID,
                     "guilds": channels_data
                 },
-                headers={"X-Admin-Secret": settings.admin_password}
+                headers={"X-Admin-Secret": ADMIN_PASSWORD}
             )
             print(f"Reported {sum(len(g['channels']) for g in channels_data)} channels to backend", flush=True)
         except Exception as e:
@@ -144,7 +148,7 @@ class MessageHandler(commands.Cog):
     async def is_channel_allowed(self, channel_id: str) -> bool:
         try:
             resp = await self.bot.http_client.get(
-                f"{settings.backend_url}/api/admin/channels/check/{settings.bot_id}/{channel_id}"
+                f"{BACKEND_URL}/api/admin/channels/check/{BOT_ID}/{channel_id}"
             )
             data = resp.json()
             return data.get("is_whitelisted", False)
@@ -257,7 +261,7 @@ class MessageHandler(commands.Cog):
         try:
             async with self.bot.http_client.stream(
                 "POST",
-                f"{settings.backend_url}/api/chat/stream",
+                f"{BACKEND_URL}/api/chat/stream",
                 json=request_data,
                 timeout=120.0
             ) as response:
@@ -382,7 +386,7 @@ class MessageHandler(commands.Cog):
         guild_emojis = self.get_guild_emojis(message.guild)
         
         request_data = {
-            "bot_id": settings.bot_id,
+            "bot_id": BOT_ID,
             "discord_id": str(message.author.id),
             "username": message.author.display_name,
             "channel_id": str(message.channel.id),
@@ -416,9 +420,9 @@ class AdminCommands(commands.Cog):
         
         try:
             resp = await self.bot.http_client.get(
-                f"{settings.backend_url}/api/admin/bot-config",
-                params={"bot_id": settings.bot_id},
-                headers={"X-Admin-Secret": settings.admin_password}
+                f"{BACKEND_URL}/api/admin/bot-config",
+                params={"bot_id": BOT_ID},
+                headers={"X-Admin-Secret": ADMIN_PASSWORD}
             )
             if resp.status_code == 200:
                 config = resp.json()
@@ -462,7 +466,7 @@ class AdminCommands(commands.Cog):
         
         try:
             resp = await self.bot.http_client.post(
-                f"{settings.backend_url}/api/admin/blacklist",
+                f"{BACKEND_URL}/api/admin/blacklist",
                 json={
                     "discord_id": str(user.id),
                     "username": user.display_name,
@@ -471,7 +475,7 @@ class AdminCommands(commands.Cog):
                     "is_permanent": duration is None,
                     "duration_minutes": duration
                 },
-                headers={"X-Admin-Secret": settings.admin_password}
+                headers={"X-Admin-Secret": ADMIN_PASSWORD}
             )
             
             if resp.status_code == 200:
@@ -498,8 +502,8 @@ class AdminCommands(commands.Cog):
         
         try:
             resp = await self.bot.http_client.delete(
-                f"{settings.backend_url}/api/admin/blacklist/{user.id}",
-                headers={"X-Admin-Secret": settings.admin_password}
+                f"{BACKEND_URL}/api/admin/blacklist/{user.id}",
+                headers={"X-Admin-Secret": ADMIN_PASSWORD}
             )
             
             if resp.status_code == 200:
@@ -520,8 +524,8 @@ class AdminCommands(commands.Cog):
         
         try:
             resp = await self.bot.http_client.get(
-                f"{settings.backend_url}/api/admin/blacklist",
-                headers={"X-Admin-Secret": settings.admin_password}
+                f"{BACKEND_URL}/api/admin/blacklist",
+                headers={"X-Admin-Secret": ADMIN_PASSWORD}
             )
             
             if resp.status_code == 200:
@@ -552,15 +556,15 @@ class AdminCommands(commands.Cog):
         
         try:
             resp = await self.bot.http_client.post(
-                f"{settings.backend_url}/api/admin/channels",
+                f"{BACKEND_URL}/api/admin/channels",
                 json={
-                    "bot_id": settings.bot_id,
+                    "bot_id": BOT_ID,
                     "channel_id": str(interaction.channel_id),
                     "guild_id": str(interaction.guild_id),
                     "channel_name": interaction.channel.name,
                     "added_by": str(interaction.user.id)
                 },
-                headers={"X-Admin-Secret": settings.admin_password}
+                headers={"X-Admin-Secret": ADMIN_PASSWORD}
             )
             
             if resp.status_code == 200:
@@ -581,8 +585,8 @@ class AdminCommands(commands.Cog):
         
         try:
             resp = await self.bot.http_client.delete(
-                f"{settings.backend_url}/api/admin/channels/{settings.bot_id}/{interaction.channel_id}",
-                headers={"X-Admin-Secret": settings.admin_password}
+                f"{BACKEND_URL}/api/admin/channels/{BOT_ID}/{interaction.channel_id}",
+                headers={"X-Admin-Secret": ADMIN_PASSWORD}
             )
             
             if resp.status_code == 200:
@@ -603,9 +607,9 @@ class AdminCommands(commands.Cog):
         
         try:
             resp = await self.bot.http_client.get(
-                f"{settings.backend_url}/api/admin/channels",
-                params={"bot_id": settings.bot_id, "guild_id": str(interaction.guild_id)},
-                headers={"X-Admin-Secret": settings.admin_password}
+                f"{BACKEND_URL}/api/admin/channels",
+                params={"bot_id": BOT_ID, "guild_id": str(interaction.guild_id)},
+                headers={"X-Admin-Secret": ADMIN_PASSWORD}
             )
             
             if resp.status_code == 200:
