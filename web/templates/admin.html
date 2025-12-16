@@ -2110,13 +2110,17 @@
         }
       }
 
+      let importCancelled = false;
+
       function showImportModal() {
+        importCancelled = false;
         document.getElementById("importText").value = "";
         document.getElementById("importFile").value = "";
         document.getElementById("importPreview").innerHTML = "";
         document.getElementById("importModal").classList.remove("hidden");
       }
       function hideImportModal() {
+        importCancelled = true;
         document.getElementById("importModal").classList.add("hidden");
       }
 
@@ -2262,6 +2266,10 @@
         let success = 0;
         let failed = 0;
         for (const part of parts) {
+          if (importCancelled) {
+            preview.innerHTML = `导入已取消，已导入 <strong>${success}</strong> 条`;
+            break;
+          }
           const lines = part.split("\n");
           const title = lines[0].replace(/^#+\s*/, "").substring(0, 100);
           const content = part;
