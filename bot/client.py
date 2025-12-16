@@ -578,3 +578,20 @@ class AdminCommands(commands.Cog):
 能别这么恶俗吗，把小头挂在自己大头的产物上很有趣吗？公开发表请至少遵守公序良俗。"""
         
         await interaction.response.send_message(warning_message)
+    
+    @app_commands.command(name="howtoask", description="提示用户如何正确提问")
+    @app_commands.describe(user="要提示的用户")
+    async def how_to_ask(
+        self,
+        interaction: discord.Interaction,
+        user: discord.Member
+    ):
+        if not await self.is_admin(interaction):
+            await interaction.response.send_message("❌ 你没有权限执行此操作", ephemeral=True)
+            return
+        
+        guide_message = f"""# 📸 {user.mention} 提问请发送酒馆插头截图+酒馆后台截图
+
+插头清晰可见，不可打码。"""
+        
+        await interaction.response.send_message(guide_message)
