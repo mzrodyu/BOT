@@ -163,8 +163,9 @@ class MessageHandler(commands.Cog):
     async def get_image_urls(self, message: discord.Message) -> List[str]:
         urls = []
         image_extensions = ('.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp')
+        
+        # 从附件获取图片
         for attachment in message.attachments:
-            # 检查content_type或文件扩展名
             is_image = False
             if attachment.content_type and attachment.content_type.startswith("image/"):
                 is_image = True
@@ -173,7 +174,17 @@ class MessageHandler(commands.Cog):
             
             if is_image:
                 urls.append(attachment.url)
-                print(f"[MessageHandler] Image found: {attachment.filename} ({attachment.content_type})")
+                print(f"[MessageHandler] Image from attachment: {attachment.filename} ({attachment.content_type})")
+        
+        # 从embed获取图片
+        for embed in message.embeds:
+            if embed.image and embed.image.url:
+                urls.append(embed.image.url)
+                print(f"[MessageHandler] Image from embed.image: {embed.image.url}")
+            if embed.thumbnail and embed.thumbnail.url:
+                urls.append(embed.thumbnail.url)
+                print(f"[MessageHandler] Image from embed.thumbnail: {embed.thumbnail.url}")
+        
         return urls
     
     def process_content(self, content: str, guild: discord.Guild) -> str:
