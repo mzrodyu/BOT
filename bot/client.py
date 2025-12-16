@@ -26,8 +26,9 @@ class CatieBot(commands.Bot):
     async def setup_hook(self):
         await self.add_cog(MessageHandler(self))
         await self.add_cog(AdminCommands(self))
-        await self.tree.sync()
-        print(f"Synced slash commands")
+        # 同步斜杠命令
+        synced = await self.tree.sync()
+        print(f"Synced {len(synced)} slash commands: {[c.name for c in synced]}")
     
     async def on_ready(self):
         print(f"Logged in as {self.user} (ID: {self.user.id})")
