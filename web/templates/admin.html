@@ -2848,6 +2848,11 @@
                   </button>
                 </td>
                 <td class="px-6 py-4 space-x-2">
+                  <button onclick="editPoolModel(${
+                    m.index
+                  })" class="text-blue-600 hover:text-blue-800" title="编辑">
+                    <i class="fas fa-edit"></i>
+                  </button>
                   <button onclick="testExistingModel(${
                     m.index
                   })" class="text-green-600 hover:text-green-800" title="测试连接">
@@ -2868,16 +2873,39 @@
         }
       }
 
-      function showLLMPoolModal() {
+      let editingPoolIndex = null;
+
+      function showLLMPoolModal(isEdit = false) {
         document.getElementById("llmPoolModal").classList.remove("hidden");
-        document.getElementById("poolName").value = "";
-        document.getElementById("poolBaseUrl").value = "";
-        document.getElementById("poolApiKey").value = "";
-        document.getElementById("poolModel").value = "";
+        if (!isEdit) {
+          editingPoolIndex = null;
+          document.getElementById("poolName").value = "";
+          document.getElementById("poolBaseUrl").value = "";
+          document.getElementById("poolApiKey").value = "";
+          document.getElementById("poolModel").value = "";
+          document.querySelector("#llmPoolModal h2").textContent =
+            "添加模型到池";
+        }
       }
 
       function hideLLMPoolModal() {
         document.getElementById("llmPoolModal").classList.add("hidden");
+        editingPoolIndex = null;
+      }
+
+      async function editPoolModel(index) {
+        try {
+          const data = await api(`/api/admin/llm-pool/${index}`);
+          editingPoolIndex = index;
+          document.getElementById("poolName").value = data.name || "";
+          document.getElementById("poolBaseUrl").value = data.base_url || "";
+          document.getElementById("poolApiKey").value = data.api_key || "";
+          document.getElementById("poolModel").value = data.model || "";
+          document.querySelector("#llmPoolModal h2").textContent = "编辑模型";
+          showLLMPoolModal(true);
+        } catch (e) {
+          showToast("获取模型信息失败：" + e.message, "error");
+        }
       }
 
       async function addToLLMPool() {
@@ -2894,11 +2922,22 @@
         }
 
         try {
-          await api("/api/admin/llm-pool", "POST", data);
+          if (editingPoolIndex !== null) {
+            await api(`/api/admin/llm-pool/${editingPoolIndex}`, "PUT", data);
+            showToast("模型更新成功", "success");
+          } else {
+            await api("/api/admin/llm-pool", "POST", data);
+            showToast("模型添加成功", "success");
+          }
           hideLLMPoolModal();
           loadLLMPool();
         } catch (e) {
-          showToast("添加失败：" + e.message, "error");
+          showToast(
+            (editingPoolIndex !== null ? "更新" : "添加") +
+              "失败：" +
+              e.message,
+            "error"
+          );
         }
       }
 

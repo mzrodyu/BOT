@@ -99,6 +99,26 @@ class LLMPoolService:
             return True
         return False
     
+    def update_model(self, index: int, base_url: str = None, api_key: str = None, model: str = None, name: str = None) -> bool:
+        """更新模型配置"""
+        if 0 <= index < len(self._pool):
+            if base_url is not None:
+                self._pool[index]["base_url"] = base_url
+            if api_key is not None:
+                self._pool[index]["api_key"] = api_key
+            if model is not None:
+                self._pool[index]["model"] = model
+            if name is not None:
+                self._pool[index]["name"] = name
+            return True
+        return False
+    
+    def get_model(self, index: int) -> Optional[Dict]:
+        """获取指定索引的模型（包含完整信息）"""
+        if 0 <= index < len(self._pool):
+            return self._pool[index]
+        return None
+    
     def toggle_model(self, index: int, enabled: bool) -> bool:
         """启用/禁用模型"""
         if 0 <= index < len(self._pool):
@@ -141,7 +161,28 @@ class LLMPoolService:
         model = models[self._current_index]
         self._current_index = (self._current_index + 1) % len(models)
         
+        # 更新请求计数（如果是池中的模型）
+        self._increment_request_count(model)
+        
         return model
+    
+    def _increment_request_count(self, model: Dict):
+        """增加模型的请求计数（通过匹配base_url和model来找到池中对应的模型）"""
+        for m in self._pool:
+            if m.get("base_url") == model.get("base_url") and m.get("model") == model.get("model"):
+                if "request_count" not in m:
+                    m["request_count"] = 0
+                m["request_count"] += 1
+                self._needs_save = True
+                break
+    
+    def needs_save(self) -> bool:
+        """检查是否需要保存"""
+        return getattr(self, '_needs_save', False)
+    
+    def mark_saved(self):
+        """标记已保存"""
+        self._needs_save = False
     
     def get_client_and_model(self, config: Dict = None) -> tuple[AsyncOpenAI, str]:
         """获取客户端和模型名，如果config为空则轮流选择"""

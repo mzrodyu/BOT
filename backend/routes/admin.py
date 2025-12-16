@@ -887,6 +887,57 @@ async def test_existing_model(
         return {"success": False, "message": str(e)}
 
 
+@router.get("/llm-pool/{index}")
+async def get_llm_model(
+    index: int,
+    db: AsyncSession = Depends(get_db),
+    _: bool = Depends(verify_admin)
+):
+    """获取指定模型的完整信息（用于编辑）"""
+    pool = await LLMPoolService.get_instance()
+    if not pool.loaded:
+        await pool.load_from_db(db)
+    
+    model = pool.get_model(index)
+    if model is None:
+        raise HTTPException(status_code=404, detail="Model not found")
+    
+    return {
+        "index": index,
+        "name": model.get("name", ""),
+        "base_url": model.get("base_url", ""),
+        "api_key": model.get("api_key", ""),
+        "model": model.get("model", ""),
+        "enabled": model.get("enabled", True)
+    }
+
+
+@router.put("/llm-pool/{index}")
+async def update_llm_in_pool(
+    index: int,
+    request: dict,
+    db: AsyncSession = Depends(get_db),
+    _: bool = Depends(verify_admin)
+):
+    """更新池中的模型"""
+    pool = await LLMPoolService.get_instance()
+    if not pool.loaded:
+        await pool.load_from_db(db)
+    
+    success = pool.update_model(
+        index,
+        base_url=request.get("base_url"),
+        api_key=request.get("api_key"),
+        model=request.get("model"),
+        name=request.get("name")
+    )
+    if not success:
+        raise HTTPException(status_code=404, detail="Model not found")
+    
+    await pool.save_to_db(db)
+    return {"success": True}
+
+
 @router.put("/llm-pool/{index}/toggle")
 async def toggle_llm_in_pool(
     index: int,

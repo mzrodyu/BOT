@@ -398,7 +398,11 @@ class MessageHandler(commands.Cog):
             "guild_emojis": guild_emojis
         }
         
-        async with message.channel.typing():
+        try:
+            async with message.channel.typing():
+                await self.send_streaming_response(message, request_data)
+        except discord.Forbidden:
+            # 没有typing权限时直接发送，不显示"正在输入"
             await self.send_streaming_response(message, request_data)
 
 

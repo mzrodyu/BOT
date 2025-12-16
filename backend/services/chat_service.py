@@ -70,6 +70,12 @@ class ChatService:
             api_key=config["api_key"]
         )
         source = f"{config.get('name', 'unknown')}({config['base_url']})"
+        
+        # 保存请求计数到数据库
+        if pool.needs_save():
+            await pool.save_to_db(self.db)
+            pool.mark_saved()
+        
         return client, config["model"], source
     
     async def get_client(self) -> AsyncOpenAI:
