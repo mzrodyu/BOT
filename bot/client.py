@@ -22,24 +22,30 @@ class CatieBot(commands.Bot):
         )
         
         self.http_client = httpx.AsyncClient(timeout=60.0)
+        self._commands_synced = False
     
     async def setup_hook(self):
         await self.add_cog(MessageHandler(self))
         await self.add_cog(AdminCommands(self))
+        # 全局同步（作为备份，1小时内生效）
+        synced = await self.tree.sync()
+        print(f"Global synced {len(synced)} commands", flush=True)
     
     async def on_ready(self):
         print(f"Logged in as {self.user} (ID: {self.user.id})", flush=True)
         print(f"Connected to {len(self.guilds)} guilds", flush=True)
         
-        # 同步斜杠命令到每个服务器（立即生效）
-        for guild in self.guilds:
-            try:
-                # 复制全局命令到该服务器
-                self.tree.copy_global_to(guild=guild)
-                synced = await self.tree.sync(guild=guild)
-                print(f"Synced {len(synced)} commands to {guild.name}", flush=True)
-            except Exception as e:
-                print(f"Failed to sync to {guild.name}: {e}", flush=True)
+        # 只在首次启动时同步到各服务器，避免重连时重复同步
+        if not self._commands_synced:
+            self._commands_synced = True
+            for guild in self.guilds:
+                try:
+                    self.tree.copy_global_to(guild=guild)
+                    synced = await self.tree.sync(guild=guild)
+                    print(f"Synced {len(synced)} commands to {guild.name}", flush=True)
+                except Exception as e:
+                    print(f"Failed to sync to {guild.name}: {e}", flush=True)
+        
         await self.change_presence(
             activity=discord.Activity(
                 type=discord.ActivityType.listening,
