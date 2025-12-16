@@ -202,13 +202,67 @@ async def remove_sensitive_word(
     return {"success": True}
 
 
-@router.get("/sensitive-words", response_model=List[SensitiveWordResponse])
+@router.get("/sensitive-words")
 async def get_sensitive_words(
+    skip: int = 0,
+    limit: int = 50,
     db: AsyncSession = Depends(get_db),
     _: bool = Depends(verify_admin)
 ):
+    """获取敏感词列表（带分页）"""
     service = ContentFilter(db)
-    return await service.get_all_words()
+    items = await service.get_words_paginated(skip, limit)
+    total = await service.get_total_count()
+    return {
+        "items": [
+            {
+                "id": w.id,
+                "word": w.word,
+                "category": w.category,
+                "is_active": w.is_active,
+                "created_at": w.created_at.isoformat() if w.created_at else None
+            }
+            for w in items
+        ],
+        "total": total,
+        "skip": skip,
+        "limit": limit
+    }
+
+
+@router.put("/sensitive-words/batch-category")
+async def batch_update_category(
+    request: dict,
+    db: AsyncSession = Depends(get_db),
+    _: bool = Depends(verify_admin)
+):
+    """批量更新敏感词分类"""
+    word_ids = request.get("ids", [])
+    category = request.get("category", "")
+    if not word_ids:
+        raise HTTPException(status_code=400, detail="请选择敏感词")
+    if not category:
+        raise HTTPException(status_code=400, detail="请输入分类名称")
+    
+    service = ContentFilter(db)
+    count = await service.batch_update_category(word_ids, category)
+    return {"success": True, "updated": count}
+
+
+@router.delete("/sensitive-words/batch")
+async def batch_delete_sensitive_words(
+    request: dict,
+    db: AsyncSession = Depends(get_db),
+    _: bool = Depends(verify_admin)
+):
+    """批量删除敏感词"""
+    word_ids = request.get("ids", [])
+    if not word_ids:
+        raise HTTPException(status_code=400, detail="请选择敏感词")
+    
+    service = ContentFilter(db)
+    count = await service.batch_delete(word_ids)
+    return {"success": True, "deleted": count}
 
 
 # Users & Memories Routes
@@ -590,6 +644,58 @@ async def delete_knowledge(
     if not success:
         raise HTTPException(status_code=404, detail="Knowledge not found")
     return {"success": True}
+
+
+@router.put("/knowledge/batch-category")
+async def batch_update_knowledge_category(
+    request: dict,
+    db: AsyncSession = Depends(get_db),
+    _: bool = Depends(verify_admin)
+):
+    """批量更新知识库分类"""
+    kb_ids = request.get("ids", [])
+    category = request.get("category", "")
+    if not kb_ids:
+        raise HTTPException(status_code=400, detail="请选择知识条目")
+    if not category:
+        raise HTTPException(status_code=400, detail="请输入分类名称")
+    
+    service = KnowledgeService(db)
+    count = await service.batch_update_category(kb_ids, category)
+    return {"success": True, "updated": count}
+
+
+@router.delete("/knowledge/batch")
+async def batch_delete_knowledge(
+    request: dict,
+    db: AsyncSession = Depends(get_db),
+    _: bool = Depends(verify_admin)
+):
+    """批量删除知识库条目"""
+    kb_ids = request.get("ids", [])
+    if not kb_ids:
+        raise HTTPException(status_code=400, detail="请选择知识条目")
+    
+    service = KnowledgeService(db)
+    count = await service.batch_delete(kb_ids)
+    return {"success": True, "deleted": count}
+
+
+@router.put("/knowledge/batch-active")
+async def batch_toggle_knowledge_active(
+    request: dict,
+    db: AsyncSession = Depends(get_db),
+    _: bool = Depends(verify_admin)
+):
+    """批量启用/禁用知识库条目"""
+    kb_ids = request.get("ids", [])
+    is_active = request.get("is_active", True)
+    if not kb_ids:
+        raise HTTPException(status_code=400, detail="请选择知识条目")
+    
+    service = KnowledgeService(db)
+    count = await service.batch_toggle_active(kb_ids, is_active)
+    return {"success": True, "updated": count}
 
 
 # LLM Pool Routes (多模型轮流负载均衡)

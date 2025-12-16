@@ -94,3 +94,35 @@ class ContentFilter:
     async def get_all_words(self) -> List[SensitiveWord]:
         result = await self.db.execute(select(SensitiveWord))
         return result.scalars().all()
+    
+    async def get_words_paginated(self, skip: int = 0, limit: int = 50) -> List[SensitiveWord]:
+        """分页获取敏感词"""
+        query = select(SensitiveWord).offset(skip).limit(limit)
+        result = await self.db.execute(query)
+        return result.scalars().all()
+    
+    async def get_total_count(self) -> int:
+        """获取敏感词总数"""
+        from sqlalchemy import func
+        result = await self.db.execute(select(func.count(SensitiveWord.id)))
+        return result.scalar() or 0
+    
+    async def batch_update_category(self, word_ids: List[int], category: str) -> int:
+        """批量更新敏感词分类"""
+        from sqlalchemy import update
+        result = await self.db.execute(
+            update(SensitiveWord)
+            .where(SensitiveWord.id.in_(word_ids))
+            .values(category=category)
+        )
+        await self.db.commit()
+        return result.rowcount
+    
+    async def batch_delete(self, word_ids: List[int]) -> int:
+        """批量删除敏感词"""
+        from sqlalchemy import delete as sql_delete
+        result = await self.db.execute(
+            sql_delete(SensitiveWord).where(SensitiveWord.id.in_(word_ids))
+        )
+        await self.db.commit()
+        return result.rowcount

@@ -288,10 +288,65 @@
               </button>
             </div>
           </div>
+          <!-- 批量操作栏 -->
+          <div
+            id="knowledgeBatchBar"
+            class="hidden bg-indigo-50 border border-indigo-200 rounded-lg p-3 mb-4 flex items-center justify-between"
+          >
+            <span class="text-sm text-indigo-700"
+              >已选择 <strong id="kbSelectedCount">0</strong> 条知识</span
+            >
+            <div class="flex space-x-2">
+              <input
+                type="text"
+                id="kbBatchCategoryInput"
+                placeholder="输入分类名"
+                class="px-3 py-1 border rounded text-sm w-32"
+              />
+              <button
+                onclick="kbBatchSetCategory()"
+                class="bg-indigo-600 text-white px-3 py-1 rounded text-sm hover:bg-indigo-700"
+              >
+                <i class="fas fa-folder mr-1"></i>设置分类
+              </button>
+              <button
+                onclick="kbBatchToggleActive(true)"
+                class="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700"
+              >
+                <i class="fas fa-check mr-1"></i>启用
+              </button>
+              <button
+                onclick="kbBatchToggleActive(false)"
+                class="bg-gray-600 text-white px-3 py-1 rounded text-sm hover:bg-gray-700"
+              >
+                <i class="fas fa-ban mr-1"></i>禁用
+              </button>
+              <button
+                onclick="kbBatchDelete()"
+                class="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700"
+              >
+                <i class="fas fa-trash mr-1"></i>删除
+              </button>
+              <button
+                onclick="clearKbSelection()"
+                class="bg-gray-500 text-white px-3 py-1 rounded text-sm hover:bg-gray-600"
+              >
+                取消
+              </button>
+            </div>
+          </div>
           <div class="bg-white rounded-xl shadow-sm overflow-hidden">
             <table class="w-full">
               <thead class="bg-gray-50">
                 <tr>
+                  <th class="px-4 py-3 text-left">
+                    <input
+                      type="checkbox"
+                      id="kbSelectAll"
+                      onchange="toggleSelectAllKb()"
+                      class="w-4 h-4"
+                    />
+                  </th>
                   <th
                     class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase"
                   >
@@ -769,7 +824,12 @@
         <!-- Sensitive Words -->
         <div id="sensitive" class="tab-content">
           <div class="flex justify-between items-center mb-6">
-            <h1 class="text-3xl font-bold text-gray-800">敏感词管理</h1>
+            <div>
+              <h1 class="text-3xl font-bold text-gray-800">敏感词管理</h1>
+              <p id="sensitiveCount" class="text-sm text-gray-500 mt-1">
+                共 0 个敏感词
+              </p>
+            </div>
             <div class="flex space-x-2">
               <button
                 onclick="clearAllSensitiveWords()"
@@ -791,10 +851,54 @@
               </button>
             </div>
           </div>
+          <!-- 批量操作栏 -->
+          <div
+            id="sensitiveBatchBar"
+            class="hidden bg-orange-50 border border-orange-200 rounded-lg p-3 mb-4 flex items-center justify-between"
+          >
+            <span class="text-sm text-orange-700"
+              >已选择
+              <strong id="sensitiveSelectedCount">0</strong> 个敏感词</span
+            >
+            <div class="flex space-x-2">
+              <input
+                type="text"
+                id="batchCategoryInput"
+                placeholder="输入分类名"
+                class="px-3 py-1 border rounded text-sm w-32"
+              />
+              <button
+                onclick="batchSetCategory()"
+                class="bg-orange-600 text-white px-3 py-1 rounded text-sm hover:bg-orange-700"
+              >
+                <i class="fas fa-folder mr-1"></i>设置分类
+              </button>
+              <button
+                onclick="batchDeleteSensitive()"
+                class="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700"
+              >
+                <i class="fas fa-trash mr-1"></i>批量删除
+              </button>
+              <button
+                onclick="clearSensitiveSelection()"
+                class="bg-gray-500 text-white px-3 py-1 rounded text-sm hover:bg-gray-600"
+              >
+                取消选择
+              </button>
+            </div>
+          </div>
           <div class="bg-white rounded-xl shadow-sm overflow-hidden">
             <table class="w-full">
               <thead class="bg-gray-50">
                 <tr>
+                  <th class="px-4 py-3 text-left">
+                    <input
+                      type="checkbox"
+                      id="sensitiveSelectAll"
+                      onchange="toggleSelectAllSensitive()"
+                      class="w-4 h-4"
+                    />
+                  </th>
                   <th
                     class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase"
                   >
@@ -808,11 +912,6 @@
                   <th
                     class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase"
                   >
-                    状态
-                  </th>
-                  <th
-                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase"
-                  >
                     操作
                   </th>
                 </tr>
@@ -822,6 +921,36 @@
                 class="divide-y divide-gray-200"
               ></tbody>
             </table>
+            <!-- 分页 -->
+            <div
+              class="flex items-center justify-between px-6 py-3 bg-gray-50 border-t"
+            >
+              <div class="text-sm text-gray-500">
+                显示 <span id="swShowingStart">0</span>-<span id="swShowingEnd"
+                  >0</span
+                >
+                / <span id="swTotalItems">0</span> 个
+              </div>
+              <div class="flex space-x-2">
+                <button
+                  onclick="loadSensitiveWords(sensitivePage - 1)"
+                  id="swPrevBtn"
+                  class="px-3 py-1 border rounded hover:bg-gray-100 disabled:opacity-50"
+                  disabled
+                >
+                  上一页
+                </button>
+                <span id="swPageInfo" class="px-3 py-1 text-sm">第 1 页</span>
+                <button
+                  onclick="loadSensitiveWords(sensitivePage + 1)"
+                  id="swNextBtn"
+                  class="px-3 py-1 border rounded hover:bg-gray-100 disabled:opacity-50"
+                  disabled
+                >
+                  下一页
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -1438,6 +1567,7 @@
       let knowledgeData = [];
       let knowledgePage = 0;
       const knowledgePageSize = 20;
+      let kbSelectedIds = new Set();
 
       async function loadKnowledge(page = 0) {
         if (page < 0) page = 0;
@@ -1452,12 +1582,10 @@
           const total = result.total || 0;
           knowledgeData = data;
 
-          // 更新总数显示
           document.getElementById(
             "knowledgeCount"
           ).textContent = `共 ${total} 条知识`;
 
-          // 更新分页信息
           const start = total > 0 ? skip + 1 : 0;
           const end = Math.min(skip + data.length, total);
           document.getElementById("kbShowingStart").textContent = start;
@@ -1467,18 +1595,24 @@
             page + 1
           } 页`;
 
-          // 更新分页按钮状态
           document.getElementById("kbPrevBtn").disabled = page === 0;
           document.getElementById("kbNextBtn").disabled = end >= total;
 
-          // 渲染表格
+          // 清空选择
+          kbSelectedIds.clear();
+          updateKbBatchBar();
+          document.getElementById("kbSelectAll").checked = false;
+
           document.getElementById("knowledgeTable").innerHTML =
             data.length === 0
-              ? '<tr><td colspan="5" class="px-6 py-8 text-center text-gray-500">暂无知识条目</td></tr>'
+              ? '<tr><td colspan="6" class="px-6 py-8 text-center text-gray-500">暂无知识条目</td></tr>'
               : data
                   .map(
                     (kb) => `
                 <tr>
+                    <td class="px-4 py-4"><input type="checkbox" class="kb-checkbox w-4 h-4" data-id="${
+                      kb.id
+                    }" onchange="toggleKbSelect(${kb.id})" /></td>
                     <td class="px-6 py-4 text-sm text-gray-900">${kb.title}</td>
                     <td class="px-6 py-4 text-sm text-gray-500">${
                       kb.keywords || "-"
@@ -1491,9 +1625,7 @@
                           kb.is_active
                             ? "bg-green-100 text-green-800"
                             : "bg-gray-100 text-gray-800"
-                        }">
-                            ${kb.is_active ? "启用" : "禁用"}
-                        </span>
+                        }">${kb.is_active ? "启用" : "禁用"}</span>
                         ${
                           kb.has_embedding
                             ? '<span class="ml-1 px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800">向量</span>'
@@ -1503,14 +1635,10 @@
                     <td class="px-6 py-4">
                         <button onclick="editKnowledge(${
                           kb.id
-                        })" class="text-indigo-600 hover:text-indigo-800 mr-2">
-                            <i class="fas fa-edit"></i>
-                        </button>
+                        })" class="text-indigo-600 hover:text-indigo-800 mr-2"><i class="fas fa-edit"></i></button>
                         <button onclick="deleteKnowledge(${
                           kb.id
-                        })" class="text-red-600 hover:text-red-800">
-                            <i class="fas fa-trash"></i>
-                        </button>
+                        })" class="text-red-600 hover:text-red-800"><i class="fas fa-trash"></i></button>
                     </td>
                 </tr>
             `
@@ -1519,6 +1647,107 @@
         } catch (e) {
           console.error("Load knowledge error:", e);
           showToast("加载知识库失败", "error");
+        }
+      }
+
+      function toggleKbSelect(id) {
+        if (kbSelectedIds.has(id)) kbSelectedIds.delete(id);
+        else kbSelectedIds.add(id);
+        updateKbBatchBar();
+      }
+
+      function toggleSelectAllKb() {
+        const selectAll = document.getElementById("kbSelectAll").checked;
+        document.querySelectorAll(".kb-checkbox").forEach((cb) => {
+          cb.checked = selectAll;
+          const id = parseInt(cb.dataset.id);
+          if (selectAll) kbSelectedIds.add(id);
+          else kbSelectedIds.delete(id);
+        });
+        updateKbBatchBar();
+      }
+
+      function updateKbBatchBar() {
+        const count = kbSelectedIds.size;
+        document.getElementById("kbSelectedCount").textContent = count;
+        document
+          .getElementById("knowledgeBatchBar")
+          .classList.toggle("hidden", count === 0);
+      }
+
+      function clearKbSelection() {
+        kbSelectedIds.clear();
+        document
+          .querySelectorAll(".kb-checkbox")
+          .forEach((cb) => (cb.checked = false));
+        document.getElementById("kbSelectAll").checked = false;
+        updateKbBatchBar();
+      }
+
+      async function kbBatchSetCategory() {
+        const category = document
+          .getElementById("kbBatchCategoryInput")
+          .value.trim();
+        if (!category) {
+          showToast("请输入分类名称", "error");
+          return;
+        }
+        if (kbSelectedIds.size === 0) {
+          showToast("请先选择知识条目", "error");
+          return;
+        }
+        try {
+          await api("/api/admin/knowledge/batch-category", "PUT", {
+            ids: Array.from(kbSelectedIds),
+            category,
+          });
+          showToast(
+            `已将 ${kbSelectedIds.size} 条知识设为「${category}」`,
+            "success"
+          );
+          clearKbSelection();
+          loadKnowledge(knowledgePage);
+        } catch (e) {
+          showToast("批量设置分类失败: " + e.message, "error");
+        }
+      }
+
+      async function kbBatchToggleActive(isActive) {
+        if (kbSelectedIds.size === 0) {
+          showToast("请先选择知识条目", "error");
+          return;
+        }
+        try {
+          await api("/api/admin/knowledge/batch-active", "PUT", {
+            ids: Array.from(kbSelectedIds),
+            is_active: isActive,
+          });
+          showToast(
+            `已${isActive ? "启用" : "禁用"} ${kbSelectedIds.size} 条知识`,
+            "success"
+          );
+          clearKbSelection();
+          loadKnowledge(knowledgePage);
+        } catch (e) {
+          showToast("批量操作失败: " + e.message, "error");
+        }
+      }
+
+      async function kbBatchDelete() {
+        if (kbSelectedIds.size === 0) {
+          showToast("请先选择知识条目", "error");
+          return;
+        }
+        if (!confirm(`确定删除选中的 ${kbSelectedIds.size} 条知识？`)) return;
+        try {
+          await api("/api/admin/knowledge/batch", "DELETE", {
+            ids: Array.from(kbSelectedIds),
+          });
+          showToast(`已删除 ${kbSelectedIds.size} 条知识`, "success");
+          clearKbSelection();
+          loadKnowledge(knowledgePage);
+        } catch (e) {
+          showToast("批量删除失败: " + e.message, "error");
         }
       }
 
@@ -1698,39 +1927,151 @@
         }
       }
 
-      async function loadSensitiveWords() {
-        const data = await api("/api/admin/sensitive-words");
-        document.getElementById("sensitiveTable").innerHTML = data
-          .map(
-            (sw) => `
+      let sensitivePage = 0;
+      const sensitivePageSize = 50;
+      let sensitiveSelectedIds = new Set();
+
+      async function loadSensitiveWords(page = 0) {
+        if (page < 0) page = 0;
+        sensitivePage = page;
+        const skip = page * sensitivePageSize;
+
+        try {
+          const result = await api(
+            `/api/admin/sensitive-words?skip=${skip}&limit=${sensitivePageSize}`
+          );
+          const data = result.items || [];
+          const total = result.total || 0;
+
+          document.getElementById(
+            "sensitiveCount"
+          ).textContent = `共 ${total} 个敏感词`;
+
+          const start = total > 0 ? skip + 1 : 0;
+          const end = Math.min(skip + data.length, total);
+          document.getElementById("swShowingStart").textContent = start;
+          document.getElementById("swShowingEnd").textContent = end;
+          document.getElementById("swTotalItems").textContent = total;
+          document.getElementById("swPageInfo").textContent = `第 ${
+            page + 1
+          } 页`;
+
+          document.getElementById("swPrevBtn").disabled = page === 0;
+          document.getElementById("swNextBtn").disabled = end >= total;
+
+          sensitiveSelectedIds.clear();
+          updateSensitiveBatchBar();
+          document.getElementById("sensitiveSelectAll").checked = false;
+
+          document.getElementById("sensitiveTable").innerHTML =
+            data.length === 0
+              ? '<tr><td colspan="4" class="px-6 py-8 text-center text-gray-500">暂无敏感词</td></tr>'
+              : data
+                  .map(
+                    (sw) => `
                 <tr>
+                    <td class="px-4 py-4"><input type="checkbox" class="sensitive-checkbox w-4 h-4" data-id="${
+                      sw.id
+                    }" onchange="toggleSensitiveSelect(${sw.id})" /></td>
                     <td class="px-6 py-4 text-sm text-gray-900">${sw.word}</td>
-                    <td class="px-6 py-4 text-sm text-gray-500">${
-                      sw.category || "-"
-                    }</td>
-                    <td class="px-6 py-4">
-                        <span class="px-2 py-1 text-xs rounded-full ${
-                          sw.is_active
-                            ? "bg-green-100 text-green-800"
-                            : "bg-gray-100 text-gray-800"
-                        }">
-                            ${sw.is_active ? "启用" : "禁用"}
-                        </span>
-                    </td>
-                    <td class="px-6 py-4">
-                        <button onclick="removeSensitiveWord(${
-                          sw.id
-                        })" class="text-red-600 hover:text-red-800">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </td>
+                    <td class="px-6 py-4 text-sm text-gray-500"><span class="px-2 py-1 text-xs rounded-full ${
+                      sw.category
+                        ? "bg-orange-100 text-orange-800"
+                        : "bg-gray-100 text-gray-600"
+                    }">${sw.category || "无分类"}</span></td>
+                    <td class="px-6 py-4"><button onclick="removeSensitiveWord(${
+                      sw.id
+                    })" class="text-red-600 hover:text-red-800"><i class="fas fa-trash"></i></button></td>
                 </tr>
             `
-          )
-          .join("");
+                  )
+                  .join("");
+        } catch (e) {
+          console.error("Load sensitive words error:", e);
+        }
       }
 
-      // Modal functions
+      function toggleSensitiveSelect(id) {
+        if (sensitiveSelectedIds.has(id)) sensitiveSelectedIds.delete(id);
+        else sensitiveSelectedIds.add(id);
+        updateSensitiveBatchBar();
+      }
+
+      function toggleSelectAllSensitive() {
+        const selectAll = document.getElementById("sensitiveSelectAll").checked;
+        document.querySelectorAll(".sensitive-checkbox").forEach((cb) => {
+          cb.checked = selectAll;
+          const id = parseInt(cb.dataset.id);
+          if (selectAll) sensitiveSelectedIds.add(id);
+          else sensitiveSelectedIds.delete(id);
+        });
+        updateSensitiveBatchBar();
+      }
+
+      function updateSensitiveBatchBar() {
+        const count = sensitiveSelectedIds.size;
+        document.getElementById("sensitiveSelectedCount").textContent = count;
+        document
+          .getElementById("sensitiveBatchBar")
+          .classList.toggle("hidden", count === 0);
+      }
+
+      function clearSensitiveSelection() {
+        sensitiveSelectedIds.clear();
+        document
+          .querySelectorAll(".sensitive-checkbox")
+          .forEach((cb) => (cb.checked = false));
+        document.getElementById("sensitiveSelectAll").checked = false;
+        updateSensitiveBatchBar();
+      }
+
+      async function batchSetCategory() {
+        const category = document
+          .getElementById("batchCategoryInput")
+          .value.trim();
+        if (!category) {
+          showToast("请输入分类名称", "error");
+          return;
+        }
+        if (sensitiveSelectedIds.size === 0) {
+          showToast("请先选择敏感词", "error");
+          return;
+        }
+        try {
+          await api("/api/admin/sensitive-words/batch-category", "PUT", {
+            ids: Array.from(sensitiveSelectedIds),
+            category,
+          });
+          showToast(
+            `已将 ${sensitiveSelectedIds.size} 个敏感词设为「${category}」`,
+            "success"
+          );
+          clearSensitiveSelection();
+          loadSensitiveWords(sensitivePage);
+        } catch (e) {
+          showToast("批量设置分类失败: " + e.message, "error");
+        }
+      }
+
+      async function batchDeleteSensitive() {
+        if (sensitiveSelectedIds.size === 0) {
+          showToast("请先选择敏感词", "error");
+          return;
+        }
+        if (!confirm(`确定删除选中的 ${sensitiveSelectedIds.size} 个敏感词？`))
+          return;
+        try {
+          await api("/api/admin/sensitive-words/batch", "DELETE", {
+            ids: Array.from(sensitiveSelectedIds),
+          });
+          showToast(`已删除 ${sensitiveSelectedIds.size} 个敏感词`, "success");
+          clearSensitiveSelection();
+          loadSensitiveWords(sensitivePage);
+        } catch (e) {
+          showToast("批量删除失败: " + e.message, "error");
+        }
+      }
+
       function showImportModal() {
         document.getElementById("importText").value = "";
         document.getElementById("importFile").value = "";

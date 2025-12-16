@@ -193,3 +193,34 @@ class KnowledgeService:
             query = query.where(KnowledgeBase.is_active == True)
         result = await self.db.execute(query)
         return result.scalar() or 0
+    
+    async def batch_update_category(self, kb_ids: List[int], category: str) -> int:
+        """批量更新知识库分类"""
+        from sqlalchemy import update
+        result = await self.db.execute(
+            update(KnowledgeBase)
+            .where(KnowledgeBase.id.in_(kb_ids))
+            .values(category=category)
+        )
+        await self.db.commit()
+        return result.rowcount
+    
+    async def batch_delete(self, kb_ids: List[int]) -> int:
+        """批量删除知识库条目"""
+        from sqlalchemy import delete as sql_delete
+        result = await self.db.execute(
+            sql_delete(KnowledgeBase).where(KnowledgeBase.id.in_(kb_ids))
+        )
+        await self.db.commit()
+        return result.rowcount
+    
+    async def batch_toggle_active(self, kb_ids: List[int], is_active: bool) -> int:
+        """批量启用/禁用知识库条目"""
+        from sqlalchemy import update
+        result = await self.db.execute(
+            update(KnowledgeBase)
+            .where(KnowledgeBase.id.in_(kb_ids))
+            .values(is_active=is_active)
+        )
+        await self.db.commit()
+        return result.rowcount
