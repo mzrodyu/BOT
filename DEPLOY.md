@@ -27,14 +27,6 @@ git clone https://github.com/mzrodyu/BOT.git catiebot
 | 启动命令     | `pip install -r requirements.txt && python run_backend.py --port 8001` |
 | 外部映射端口 | 8001→8001                                                              |
 
-**环境变量**（在"环境变量"标签页添加）：
-
-| 变量名         | 值                          |
-| -------------- | --------------------------- |
-| ADMIN_PASSWORD | 你的后台密码                |
-| LLM_API_KEY    | 你的LLM API密钥             |
-| LLM_BASE_URL   | <https://api.openai.com/v1> |
-
 #### Bot项目
 
 | 配置项   | 值                                                     |
@@ -43,14 +35,18 @@ git clone https://github.com/mzrodyu/BOT.git catiebot
 | 项目目录 | `/www/wwwroot/catiebot`                                |
 | 启动命令 | `pip install -r requirements.txt && python run_bot.py` |
 
-**环境变量**：
+#### 环境变量（两个项目都加这些）
 
-| 变量名            | 值                        |
-| ----------------- | ------------------------- |
-| DISCORD_BOT_TOKEN | 你的Discord机器人Token    |
-| BACKEND_URL       | <http://127.0.0.1:8001>   |
-| BOT_ID            | 自定义Bot标识（如 mybot） |
-| ADMIN_PASSWORD    | 和后端相同的密码          |
+在"环境变量"标签页添加：
+
+| 变量名            | 值                      |
+| ----------------- | ----------------------- |
+| BOT_ID            | 自定义Bot标识（如 yu）  |
+| ADMIN_PASSWORD    | 你的后台密码            |
+| DISCORD_BOT_TOKEN | 你的Discord机器人Token  |
+| BACKEND_URL       | <http://127.0.0.1:8001> |
+
+> LLM 配置（API地址、密钥、模型）在后台界面 **API设置** 中配置，不需要环境变量
 
 ### 4. 启动项目
 
