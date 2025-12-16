@@ -647,3 +647,47 @@ class AdminCommands(commands.Cog):
 插头清晰可见，不可打码。"""
         
         await interaction.response.send_message(guide_message)
+    
+    @app_commands.command(name="delmsg", description="删除Bot发送的指定消息")
+    @app_commands.describe(message_link="消息链接")
+    async def delete_bot_message(
+        self,
+        interaction: discord.Interaction,
+        message_link: str
+    ):
+        if not await self.is_admin(interaction):
+            await interaction.response.send_message("❌ 你没有权限执行此操作", ephemeral=True)
+            return
+        
+        import re
+        # 解析消息链接: https://discord.com/channels/{guild_id}/{channel_id}/{message_id}
+        pattern = r'https://(?:ptb\.|canary\.)?discord\.com/channels/(\d+)/(\d+)/(\d+)'
+        match = re.match(pattern, message_link)
+        
+        if not match:
+            await interaction.response.send_message("❌ 无效的消息链接格式", ephemeral=True)
+            return
+        
+        guild_id, channel_id, message_id = match.groups()
+        
+        try:
+            channel = self.bot.get_channel(int(channel_id))
+            if not channel:
+                channel = await self.bot.fetch_channel(int(channel_id))
+            
+            message = await channel.fetch_message(int(message_id))
+            
+            # 检查是否是Bot自己的消息
+            if message.author.id != self.bot.user.id:
+                await interaction.response.send_message("❌ 只能删除Bot自己发送的消息", ephemeral=True)
+                return
+            
+            await message.delete()
+            await interaction.response.send_message(f"✅ 已删除消息", ephemeral=True)
+            
+        except discord.NotFound:
+            await interaction.response.send_message("❌ 消息不存在或已被删除", ephemeral=True)
+        except discord.Forbidden:
+            await interaction.response.send_message("❌ 没有权限删除该消息", ephemeral=True)
+        except Exception as e:
+            await interaction.response.send_message(f"❌ 删除失败: {e}", ephemeral=True)
