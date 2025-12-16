@@ -34,6 +34,8 @@ class CatieBot(commands.Bot):
         # 同步斜杠命令到每个服务器（立即生效）
         for guild in self.guilds:
             try:
+                # 复制全局命令到该服务器
+                self.tree.copy_global_to(guild=guild)
                 synced = await self.tree.sync(guild=guild)
                 print(f"Synced {len(synced)} commands to {guild.name}", flush=True)
             except Exception as e:
