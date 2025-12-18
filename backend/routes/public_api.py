@@ -154,28 +154,44 @@ async def test_connection(
         base_url = req.newapi_url.rstrip("/")
         base_url = re.sub(r'/(v1|api)$', '', base_url)
         
-        async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
+        async with httpx.AsyncClient(timeout=10, follow_redirects=True, verify=False) as client:
+            # 先测试基本连接
+            try:
+                test_resp = await client.get(base_url)
+                print(f"[Test] Base URL {base_url} status: {test_resp.status_code}")
+            except Exception as e:
+                return {"success": False, "message": f"无法连接到 {base_url}: {e}"}
+            
             # 尝试多种认证方式
             headers_list = [
-                {"Authorization": f"{req.newapi_token}"},  # 直接token
-                {"Authorization": f"Bearer {req.newapi_token}"},  # Bearer token
-                {"Cookie": f"session={req.newapi_token}"},  # Cookie session
+                ("Bearer", {"Authorization": f"Bearer {req.newapi_token}"}),
+                ("Direct", {"Authorization": f"{req.newapi_token}"}),
+                ("Cookie", {"Cookie": f"session={req.newapi_token}"}),
             ]
             
-            for headers in headers_list:
+            errors = []
+            for name, headers in headers_list:
                 url = base_url + "/api/user/self"
                 resp = await client.get(url, headers=headers)
+                print(f"[Test] {name} auth: {resp.status_code}")
                 
                 if resp.status_code == 200:
-                    data = resp.json()
-                    if data.get("success") != False and data.get("data"):
-                        username = data.get("data", {}).get("username", "admin")
-                        role = data.get("data", {}).get("role", 0)
-                        role_name = "管理员" if role >= 100 else "普通用户"
-                        return {"success": True, "message": f"连接成功！用户: {username} ({role_name})"}
+                    try:
+                        data = resp.json()
+                        if data.get("success") != False and data.get("data"):
+                            username = data.get("data", {}).get("username", "admin")
+                            role = data.get("data", {}).get("role", 0)
+                            role_name = "管理员" if role >= 100 else "普通用户"
+                            return {"success": True, "message": f"连接成功！用户: {username} ({role_name})"}
+                        else:
+                            errors.append(f"{name}: {data.get('message', 'API返回失败')}")
+                    except:
+                        errors.append(f"{name}: 响应解析失败")
+                else:
+                    errors.append(f"{name}: HTTP {resp.status_code}")
             
-            # 所有方式都失败
-            return {"success": False, "message": "Token无效，请确保使用管理员账号的系统访问令牌"}
+            # 所有方式都失败，返回详细错误
+            return {"success": False, "message": f"认证失败: {'; '.join(errors)}"}
     except Exception as e:
         return {"success": False, "message": str(e)}
 
