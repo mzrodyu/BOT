@@ -913,6 +913,26 @@
             <div class="space-y-4">
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1"
+                  >Bot ID</label
+                >
+                <div class="flex space-x-2">
+                  <input
+                    type="text"
+                    id="publicApiBotId"
+                    placeholder="yu"
+                    value="yu"
+                    class="flex-1 px-4 py-2 border rounded-lg"
+                  />
+                  <button
+                    onclick="loadPublicApiConfig()"
+                    class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                  >
+                    加载配置
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1"
                   >站点名称</label
                 >
                 <input
@@ -3757,9 +3777,13 @@
       }
 
       // ========== Public API (公益站) ==========
+      function getPublicApiBotId() {
+        return document.getElementById("publicApiBotId")?.value || "yu";
+      }
+
       async function loadPublicApiConfig() {
         try {
-          const data = await api(`/api/public/config/${currentBotId}`);
+          const data = await api(`/api/public/config/${getPublicApiBotId()}`);
           if (data.configured) {
             document.getElementById("publicApiName").value = data.name || "";
             document.getElementById("publicApiUrl").value =
@@ -3791,7 +3815,9 @@
 
       async function loadLotteries() {
         try {
-          const lotteries = await api(`/api/public/lottery/${currentBotId}`);
+          const lotteries = await api(
+            `/api/public/lottery/${getPublicApiBotId()}`
+          );
           const container = document.getElementById("lotteryList");
           if (lotteries.length === 0) {
             container.innerHTML =
@@ -3841,7 +3867,7 @@
         }
         try {
           await api("/api/public/lottery", "POST", {
-            bot_id: currentBotId,
+            bot_id: getPublicApiBotId(),
             title: title,
             prize_quota:
               parseInt(document.getElementById("lotteryPrize").value) || 100000,
@@ -3902,7 +3928,7 @@
       async function loadRedPackets() {
         try {
           const packets = await api(
-            `/api/public/redpacket/${currentBotId}/all`
+            `/api/public/redpacket/${getPublicApiBotId()}/all`
           );
           const container = document.getElementById("redPacketList");
           if (packets.length === 0) {
@@ -3945,7 +3971,7 @@
       async function createRedPacket() {
         try {
           await api("/api/public/redpacket", "POST", {
-            bot_id: currentBotId,
+            bot_id: getPublicApiBotId(),
             total_quota:
               parseInt(document.getElementById("rpTotalQuota").value) || 500000,
             total_count:
@@ -3982,7 +4008,7 @@
 
         try {
           await api("/api/public/config", "POST", {
-            bot_id: currentBotId,
+            bot_id: getPublicApiBotId(),
             name: document.getElementById("publicApiName").value || "公益站",
             newapi_url: url,
             newapi_token: token,
