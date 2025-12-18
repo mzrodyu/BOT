@@ -47,16 +47,17 @@ class CatieBot(commands.Bot):
         print(f"Logged in as {self.user} (ID: {self.user.id})", flush=True)
         print(f"Connected to {len(self.guilds)} guilds", flush=True)
         
-        # 只在首次启动时同步，防止重连时重复同步导致命令消失
+        # 启动时清理服务器级别的重复命令，只保留全局命令
         if not self._synced:
             self._synced = True
             for guild in self.guilds:
                 try:
-                    self.tree.copy_global_to(guild=guild)
-                    synced = await self.tree.sync(guild=guild)
-                    print(f"Synced {len(synced)} commands to {guild.name}", flush=True)
+                    # 清空服务器级别命令，避免与全局命令重复
+                    self.tree.clear_commands(guild=guild)
+                    await self.tree.sync(guild=guild)
+                    print(f"Cleared guild commands for {guild.name}", flush=True)
                 except Exception as e:
-                    print(f"Failed to sync to {guild.name}: {e}", flush=True)
+                    print(f"Failed to clear commands for {guild.name}: {e}", flush=True)
         
         await self.change_presence(
             activity=discord.Activity(
