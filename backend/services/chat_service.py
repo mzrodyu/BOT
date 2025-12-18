@@ -350,7 +350,7 @@ class ChatService:
             current_model = None
             try:
                 client, model, source = await self.get_client_and_model()
-                current_model = {"base_url": client.base_url, "model": model, "name": source}
+                current_model = {"base_url": str(client.base_url), "model": model, "name": source}
                 full_response = ""
                 
                 # 获取流式开关（跟随主API设置）
