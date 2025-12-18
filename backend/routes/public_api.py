@@ -148,9 +148,14 @@ async def test_connection(
         raise HTTPException(status_code=403, detail="Unauthorized")
     
     import httpx
+    import re
     try:
+        # 清理URL：移除末尾的 /v1 或 /api 等
+        base_url = req.newapi_url.rstrip("/")
+        base_url = re.sub(r'/(v1|api)$', '', base_url)
+        
         async with httpx.AsyncClient(timeout=10) as client:
-            url = req.newapi_url.rstrip("/") + "/api/user/self"
+            url = base_url + "/api/user/self"
             resp = await client.get(url, headers={
                 "Authorization": f"Bearer {req.newapi_token}",
                 "New-Api-User": req.newapi_token
@@ -163,6 +168,8 @@ async def test_connection(
                     return {"success": True, "message": f"连接成功！用户: {username}"}
                 else:
                     return {"success": False, "message": data.get("message", "认证失败")}
+            elif resp.status_code == 401:
+                return {"success": False, "message": "Token无效或已过期，请重新获取"}
             else:
                 return {"success": False, "message": f"HTTP {resp.status_code}"}
     except Exception as e:
