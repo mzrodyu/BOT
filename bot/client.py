@@ -962,3 +962,96 @@ class PublicAPICommands(commands.Cog):
                     
         except Exception as e:
             await interaction.followup.send(f"❌ 请求失败: {e}", ephemeral=True)
+    
+    @app_commands.command(name="抽奖", description="查看并参与抽奖活动")
+    async def lottery(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+        try:
+            resp = await self.bot.http_client.get(f"{BACKEND_URL}/api/public/lottery/{BOT_ID}")
+            lotteries = resp.json()
+            
+            if not lotteries:
+                await interaction.followup.send("📭 暂无进行中的抽奖活动", ephemeral=True)
+                return
+            
+            # 创建选择菜单
+            embed = discord.Embed(title="🎁 抽奖活动", color=discord.Color.purple())
+            for l in lotteries[:5]:
+                status = "🔴 已结束" if l.get("is_ended") else "🟢 进行中"
+                embed.add_field(
+                    name=f"{l['title']} {status}",
+                    value=f"奖品额度: {l['prize_quota']} | {l['winner_count']}人中奖 | {l['participant_count']}人参与\n使用 `/参与抽奖 {l['id']}` 参与",
+                    inline=False
+                )
+            await interaction.followup.send(embed=embed, ephemeral=True)
+        except Exception as e:
+            await interaction.followup.send(f"❌ 获取抽奖列表失败: {e}", ephemeral=True)
+    
+    @app_commands.command(name="参与抽奖", description="参与指定抽奖活动")
+    @app_commands.describe(lottery_id="抽奖活动ID")
+    async def join_lottery(self, interaction: discord.Interaction, lottery_id: int):
+        await interaction.response.defer(ephemeral=True)
+        try:
+            resp = await self.bot.http_client.post(
+                f"{BACKEND_URL}/api/public/lottery/join",
+                json={
+                    "bot_id": BOT_ID,
+                    "lottery_id": lottery_id,
+                    "discord_id": str(interaction.user.id),
+                    "discord_username": interaction.user.display_name
+                }
+            )
+            data = resp.json()
+            if data.get("success"):
+                await interaction.followup.send(f"✅ 参与成功！当前已有 {data.get('participant_count', '?')} 人参与", ephemeral=True)
+            else:
+                await interaction.followup.send(f"❌ {data.get('error', '参与失败')}", ephemeral=True)
+        except Exception as e:
+            await interaction.followup.send(f"❌ 参与失败: {e}", ephemeral=True)
+    
+    @app_commands.command(name="红包", description="查看并领取红包")
+    async def redpacket(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+        try:
+            resp = await self.bot.http_client.get(f"{BACKEND_URL}/api/public/redpacket/{BOT_ID}")
+            packets = resp.json()
+            
+            if not packets:
+                await interaction.followup.send("📭 暂无可领取的红包", ephemeral=True)
+                return
+            
+            embed = discord.Embed(title="🧧 红包列表", color=discord.Color.red())
+            for p in packets[:5]:
+                rtype = "🎲 拼手气" if p.get("is_random") else "💰 普通"
+                embed.add_field(
+                    name=f"{rtype} 红包 #{p['id']}",
+                    value=f"剩余: {p['remaining_count']}/{p['total_count']} 个\n使用 `/领红包 {p['id']}` 领取",
+                    inline=False
+                )
+            await interaction.followup.send(embed=embed, ephemeral=True)
+        except Exception as e:
+            await interaction.followup.send(f"❌ 获取红包列表失败: {e}", ephemeral=True)
+    
+    @app_commands.command(name="领红包", description="领取指定红包")
+    @app_commands.describe(red_packet_id="红包ID")
+    async def claim_redpacket(self, interaction: discord.Interaction, red_packet_id: int):
+        await interaction.response.defer(ephemeral=True)
+        try:
+            resp = await self.bot.http_client.post(
+                f"{BACKEND_URL}/api/public/redpacket/claim",
+                json={
+                    "bot_id": BOT_ID,
+                    "red_packet_id": red_packet_id,
+                    "discord_id": str(interaction.user.id),
+                    "discord_username": interaction.user.display_name
+                }
+            )
+            data = resp.json()
+            if data.get("success"):
+                quota = data.get("quota", 0)
+                usd = quota / 500000
+                await interaction.followup.send(f"🎉 恭喜领到 **{quota}** 额度 (约 ${usd:.4f})！剩余 {data.get('remaining_count', 0)} 个", ephemeral=True)
+            else:
+                await interaction.followup.send(f"❌ {data.get('error', '领取失败')}", ephemeral=True)
+        except Exception as e:
+            await interaction.followup.send(f"❌ 领取失败: {e}", ephemeral=True)
