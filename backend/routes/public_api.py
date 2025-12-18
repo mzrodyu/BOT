@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlalchemy.ext.asyncio import AsyncSession
-from database.connection import get_db
+from database import get_db
 from backend.services.public_api_service import PublicAPIService
 from pydantic import BaseModel
 from typing import Optional
