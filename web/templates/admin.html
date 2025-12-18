@@ -4010,25 +4010,14 @@
         showToast("正在测试连接...", "info");
 
         try {
-          const resp = await fetch(url.replace(/\/$/, "") + "/api/user/self", {
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "New-Api-User": token,
-            },
+          const result = await api("/api/public/test-connection", "POST", {
+            newapi_url: url,
+            newapi_token: token,
           });
-
-          if (resp.ok) {
-            const data = await resp.json();
-            if (data.success !== false) {
-              showToast(
-                "连接成功！当前用户: " + (data.data?.username || "admin"),
-                "success"
-              );
-            } else {
-              showToast("连接失败: " + (data.message || "未知错误"), "error");
-            }
+          if (result.success) {
+            showToast(result.message, "success");
           } else {
-            showToast("连接失败: HTTP " + resp.status, "error");
+            showToast("连接失败: " + result.message, "error");
           }
         } catch (e) {
           showToast("连接失败: " + e.message, "error");

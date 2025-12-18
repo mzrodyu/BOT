@@ -133,6 +133,42 @@ async def get_config(
     }
 
 
+class TestConnectionRequest(BaseModel):
+    newapi_url: str
+    newapi_token: str
+
+
+@router.post("/test-connection")
+async def test_connection(
+    req: TestConnectionRequest,
+    x_admin_secret: str = Header(None)
+):
+    """测试NewAPI连接（通过后端代理避免CORS）"""
+    if x_admin_secret != ADMIN_PASSWORD:
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    
+    import httpx
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            url = req.newapi_url.rstrip("/") + "/api/user/self"
+            resp = await client.get(url, headers={
+                "Authorization": f"Bearer {req.newapi_token}",
+                "New-Api-User": req.newapi_token
+            })
+            
+            if resp.status_code == 200:
+                data = resp.json()
+                if data.get("success") != False:
+                    username = data.get("data", {}).get("username", "admin")
+                    return {"success": True, "message": f"连接成功！用户: {username}"}
+                else:
+                    return {"success": False, "message": data.get("message", "认证失败")}
+            else:
+                return {"success": False, "message": f"HTTP {resp.status_code}"}
+    except Exception as e:
+        return {"success": False, "message": str(e)}
+
+
 # ========== 抽奖 API ==========
 class LotteryRequest(BaseModel):
     bot_id: str
