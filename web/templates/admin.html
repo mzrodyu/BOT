@@ -993,6 +993,42 @@
             </div>
           </div>
 
+          <!-- 抽奖管理 -->
+          <div class="bg-white rounded-xl shadow-sm p-6 mb-6">
+            <div class="flex justify-between items-center mb-4">
+              <h2 class="text-xl font-semibold">
+                <i class="fas fa-gift mr-2"></i>抽奖活动
+              </h2>
+              <button
+                onclick="showLotteryModal()"
+                class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition"
+              >
+                <i class="fas fa-plus mr-2"></i>发起抽奖
+              </button>
+            </div>
+            <div id="lotteryList" class="space-y-3">
+              <p class="text-gray-500 text-sm">暂无抽奖活动</p>
+            </div>
+          </div>
+
+          <!-- 红包管理 -->
+          <div class="bg-white rounded-xl shadow-sm p-6 mb-6">
+            <div class="flex justify-between items-center mb-4">
+              <h2 class="text-xl font-semibold">
+                <i class="fas fa-envelope mr-2 text-red-500"></i>额度红包
+              </h2>
+              <button
+                onclick="showRedPacketModal()"
+                class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition"
+              >
+                <i class="fas fa-plus mr-2"></i>发红包
+              </button>
+            </div>
+            <div id="redPacketList" class="space-y-3">
+              <p class="text-gray-500 text-sm">暂无红包</p>
+            </div>
+          </div>
+
           <div class="bg-blue-50 border border-blue-200 rounded-xl p-4">
             <h3 class="font-medium text-blue-800 mb-2">
               <i class="fas fa-info-circle mr-2"></i>使用说明
@@ -1155,6 +1191,147 @@
               </div>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Lottery Modal -->
+    <div
+      id="lotteryModal"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden"
+    >
+      <div class="bg-white rounded-lg p-6 w-[450px]">
+        <h2 class="text-xl font-bold mb-4">
+          <i class="fas fa-gift mr-2 text-purple-600"></i>发起抽奖
+        </h2>
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1"
+              >抽奖标题</label
+            >
+            <input
+              type="text"
+              id="lotteryTitle"
+              placeholder="如：新年福利抽奖"
+              class="w-full px-4 py-2 border rounded-lg"
+            />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1"
+              >奖品额度 (NewAPI单位)</label
+            >
+            <input
+              type="number"
+              id="lotteryPrize"
+              placeholder="100000"
+              value="100000"
+              class="w-full px-4 py-2 border rounded-lg"
+            />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1"
+              >中奖人数</label
+            >
+            <input
+              type="number"
+              id="lotteryWinnerCount"
+              placeholder="1"
+              value="1"
+              min="1"
+              class="w-full px-4 py-2 border rounded-lg"
+            />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1"
+              >描述（可选）</label
+            >
+            <textarea
+              id="lotteryDesc"
+              rows="2"
+              class="w-full px-4 py-2 border rounded-lg"
+            ></textarea>
+          </div>
+        </div>
+        <div class="flex justify-end space-x-3 mt-6">
+          <button
+            onclick="hideLotteryModal()"
+            class="px-4 py-2 border rounded-lg hover:bg-gray-100"
+          >
+            取消
+          </button>
+          <button
+            onclick="createLottery()"
+            class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+          >
+            创建抽奖
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Red Packet Modal -->
+    <div
+      id="redPacketModal"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden"
+    >
+      <div class="bg-white rounded-lg p-6 w-[450px]">
+        <h2 class="text-xl font-bold mb-4">
+          <i class="fas fa-envelope mr-2 text-red-500"></i>发红包
+        </h2>
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1"
+              >总额度 (NewAPI单位)</label
+            >
+            <input
+              type="number"
+              id="rpTotalQuota"
+              placeholder="500000"
+              value="500000"
+              class="w-full px-4 py-2 border rounded-lg"
+            />
+            <p class="text-xs text-gray-500 mt-1">1美元 = 500000</p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1"
+              >红包个数</label
+            >
+            <input
+              type="number"
+              id="rpTotalCount"
+              placeholder="10"
+              value="10"
+              min="1"
+              class="w-full px-4 py-2 border rounded-lg"
+            />
+          </div>
+          <div>
+            <label class="flex items-center">
+              <input
+                type="checkbox"
+                id="rpIsRandom"
+                checked
+                class="mr-2 w-4 h-4"
+              />
+              <span class="text-sm font-medium text-gray-700"
+                >拼手气（随机金额）</span
+              >
+            </label>
+          </div>
+        </div>
+        <div class="flex justify-end space-x-3 mt-6">
+          <button
+            onclick="hideRedPacketModal()"
+            class="px-4 py-2 border rounded-lg hover:bg-gray-100"
+          >
+            取消
+          </button>
+          <button
+            onclick="createRedPacket()"
+            class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+          >
+            发红包
+          </button>
         </div>
       </div>
     </div>
@@ -3594,6 +3771,203 @@
           }
         } catch (e) {
           console.log("Public API config not found or error:", e);
+        }
+        // 加载抽奖和红包列表
+        loadLotteries();
+        loadRedPackets();
+      }
+
+      // ========== 抽奖管理 ==========
+      function showLotteryModal() {
+        document.getElementById("lotteryTitle").value = "";
+        document.getElementById("lotteryPrize").value = "100000";
+        document.getElementById("lotteryWinnerCount").value = "1";
+        document.getElementById("lotteryDesc").value = "";
+        document.getElementById("lotteryModal").classList.remove("hidden");
+      }
+      function hideLotteryModal() {
+        document.getElementById("lotteryModal").classList.add("hidden");
+      }
+
+      async function loadLotteries() {
+        try {
+          const lotteries = await api(`/api/public/lottery/${currentBotId}`);
+          const container = document.getElementById("lotteryList");
+          if (lotteries.length === 0) {
+            container.innerHTML =
+              '<p class="text-gray-500 text-sm">暂无抽奖活动</p>';
+            return;
+          }
+          container.innerHTML = lotteries
+            .map(
+              (l) => `
+            <div class="border rounded-lg p-4 flex justify-between items-center ${
+              l.is_ended ? "bg-gray-50" : "bg-purple-50"
+            }">
+              <div>
+                <div class="font-medium">${l.title} ${
+                l.is_ended
+                  ? '<span class="text-xs bg-gray-400 text-white px-2 py-1 rounded ml-2">已开奖</span>'
+                  : '<span class="text-xs bg-purple-500 text-white px-2 py-1 rounded ml-2">进行中</span>'
+              }</div>
+                <div class="text-sm text-gray-500">奖品: ${l.prize_quota} | ${
+                l.winner_count
+              }人中奖 | ${l.participant_count}人参与</div>
+              </div>
+              <div class="flex space-x-2">
+                ${
+                  !l.is_ended
+                    ? `<button onclick="drawLottery(${l.id})" class="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700">开奖</button>`
+                    : ""
+                }
+                <button onclick="deleteLottery(${
+                  l.id
+                })" class="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700">删除</button>
+              </div>
+            </div>
+          `
+            )
+            .join("");
+        } catch (e) {
+          console.error("Load lotteries error:", e);
+        }
+      }
+
+      async function createLottery() {
+        const title = document.getElementById("lotteryTitle").value.trim();
+        if (!title) {
+          showToast("请输入抽奖标题", "error");
+          return;
+        }
+        try {
+          await api("/api/public/lottery", "POST", {
+            bot_id: currentBotId,
+            title: title,
+            prize_quota:
+              parseInt(document.getElementById("lotteryPrize").value) || 100000,
+            winner_count:
+              parseInt(document.getElementById("lotteryWinnerCount").value) ||
+              1,
+            description: document.getElementById("lotteryDesc").value,
+          });
+          showToast("抽奖已创建", "success");
+          hideLotteryModal();
+          loadLotteries();
+        } catch (e) {
+          showToast("创建失败: " + e.message, "error");
+        }
+      }
+
+      async function drawLottery(lotteryId) {
+        if (!confirm("确定要开奖吗？")) return;
+        try {
+          const result = await api(
+            `/api/public/lottery/${lotteryId}/draw`,
+            "POST"
+          );
+          if (result.success) {
+            const winners = result.winners.map((w) => w.username).join(", ");
+            showToast(`开奖成功！中奖者: ${winners}`, "success");
+            loadLotteries();
+          } else {
+            showToast("开奖失败: " + result.error, "error");
+          }
+        } catch (e) {
+          showToast("开奖失败: " + e.message, "error");
+        }
+      }
+
+      async function deleteLottery(lotteryId) {
+        if (!confirm("确定删除？")) return;
+        try {
+          await api(`/api/public/lottery/${lotteryId}`, "DELETE");
+          showToast("已删除", "success");
+          loadLotteries();
+        } catch (e) {
+          showToast("删除失败", "error");
+        }
+      }
+
+      // ========== 红包管理 ==========
+      function showRedPacketModal() {
+        document.getElementById("rpTotalQuota").value = "500000";
+        document.getElementById("rpTotalCount").value = "10";
+        document.getElementById("rpIsRandom").checked = true;
+        document.getElementById("redPacketModal").classList.remove("hidden");
+      }
+      function hideRedPacketModal() {
+        document.getElementById("redPacketModal").classList.add("hidden");
+      }
+
+      async function loadRedPackets() {
+        try {
+          const packets = await api(
+            `/api/public/redpacket/${currentBotId}/all`
+          );
+          const container = document.getElementById("redPacketList");
+          if (packets.length === 0) {
+            container.innerHTML =
+              '<p class="text-gray-500 text-sm">暂无红包</p>';
+            return;
+          }
+          container.innerHTML = packets
+            .map(
+              (p) => `
+            <div class="border rounded-lg p-4 flex justify-between items-center ${
+              p.remaining_count > 0 ? "bg-red-50" : "bg-gray-50"
+            }">
+              <div>
+                <div class="font-medium">${
+                  p.is_random ? "🎲 拼手气红包" : "💰 普通红包"
+                } ${
+                p.remaining_count > 0
+                  ? '<span class="text-xs bg-red-500 text-white px-2 py-1 rounded ml-2">进行中</span>'
+                  : '<span class="text-xs bg-gray-400 text-white px-2 py-1 rounded ml-2">已领完</span>'
+              }</div>
+                <div class="text-sm text-gray-500">总额: ${
+                  p.total_quota
+                } | 剩余: ${p.remaining_quota} | ${
+                p.total_count - p.remaining_count
+              }/${p.total_count}已领</div>
+              </div>
+              <button onclick="deleteRedPacket(${
+                p.id
+              })" class="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700">删除</button>
+            </div>
+          `
+            )
+            .join("");
+        } catch (e) {
+          console.error("Load red packets error:", e);
+        }
+      }
+
+      async function createRedPacket() {
+        try {
+          await api("/api/public/redpacket", "POST", {
+            bot_id: currentBotId,
+            total_quota:
+              parseInt(document.getElementById("rpTotalQuota").value) || 500000,
+            total_count:
+              parseInt(document.getElementById("rpTotalCount").value) || 10,
+            is_random: document.getElementById("rpIsRandom").checked,
+          });
+          showToast("红包已创建", "success");
+          hideRedPacketModal();
+          loadRedPackets();
+        } catch (e) {
+          showToast("创建失败: " + e.message, "error");
+        }
+      }
+
+      async function deleteRedPacket(rpId) {
+        if (!confirm("确定删除？")) return;
+        try {
+          await api(`/api/public/redpacket/${rpId}`, "DELETE");
+          showToast("已删除", "success");
+          loadRedPackets();
+        } catch (e) {
+          showToast("删除失败", "error");
         }
       }
 

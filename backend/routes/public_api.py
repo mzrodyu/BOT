@@ -2,8 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 from database import get_db
 from backend.services.public_api_service import PublicAPIService
+from backend.services.lottery_service import LotteryService, RedPacketService
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
+from datetime import datetime
 import os
 
 router = APIRouter(prefix="/api/public", tags=["公益站"])
@@ -129,3 +131,206 @@ async def get_config(
         "default_quota": config.default_quota,
         "default_group": config.default_group
     }
+
+
+# ========== 抽奖 API ==========
+class LotteryRequest(BaseModel):
+    bot_id: str
+    title: str
+    prize_quota: int
+    winner_count: int = 1
+    description: Optional[str] = None
+    end_time: Optional[datetime] = None
+    created_by: Optional[str] = None
+
+
+class JoinLotteryRequest(BaseModel):
+    bot_id: str
+    lottery_id: int
+    discord_id: str
+    discord_username: str
+
+
+@router.post("/lottery")
+async def create_lottery(
+    req: LotteryRequest,
+    x_admin_secret: str = Header(None),
+    db: AsyncSession = Depends(get_db)
+):
+    """创建抽奖（管理员）"""
+    if x_admin_secret != ADMIN_PASSWORD:
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    
+    service = LotteryService(db, req.bot_id)
+    lottery = await service.create_lottery(
+        title=req.title,
+        prize_quota=req.prize_quota,
+        winner_count=req.winner_count,
+        description=req.description,
+        end_time=req.end_time,
+        created_by=req.created_by
+    )
+    return {"success": True, "lottery_id": lottery.id}
+
+
+@router.get("/lottery/{bot_id}")
+async def get_lotteries(
+    bot_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """获取抽奖列表"""
+    service = LotteryService(db, bot_id)
+    lotteries = await service.get_active_lotteries()
+    return [{
+        "id": l.id,
+        "title": l.title,
+        "description": l.description,
+        "prize_quota": l.prize_quota,
+        "winner_count": l.winner_count,
+        "end_time": l.end_time.isoformat() if l.end_time else None,
+        "is_ended": l.is_ended,
+        "participant_count": await service.get_participant_count(l.id)
+    } for l in lotteries]
+
+
+@router.post("/lottery/join")
+async def join_lottery(
+    req: JoinLotteryRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """参与抽奖"""
+    service = LotteryService(db, req.bot_id)
+    return await service.join_lottery(req.lottery_id, req.discord_id, req.discord_username)
+
+
+@router.post("/lottery/{lottery_id}/draw")
+async def draw_lottery(
+    lottery_id: int,
+    x_admin_secret: str = Header(None),
+    db: AsyncSession = Depends(get_db)
+):
+    """开奖（管理员）"""
+    if x_admin_secret != ADMIN_PASSWORD:
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    
+    service = LotteryService(db)
+    return await service.draw_lottery(lottery_id)
+
+
+@router.delete("/lottery/{lottery_id}")
+async def delete_lottery(
+    lottery_id: int,
+    x_admin_secret: str = Header(None),
+    db: AsyncSession = Depends(get_db)
+):
+    """删除抽奖（管理员）"""
+    if x_admin_secret != ADMIN_PASSWORD:
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    
+    service = LotteryService(db)
+    await service.delete_lottery(lottery_id)
+    return {"success": True}
+
+
+# ========== 红包 API ==========
+class RedPacketRequest(BaseModel):
+    bot_id: str
+    total_quota: int
+    total_count: int
+    is_random: bool = True
+    created_by: Optional[str] = None
+
+
+class ClaimRedPacketRequest(BaseModel):
+    bot_id: str
+    red_packet_id: int
+    discord_id: str
+    discord_username: str
+
+
+@router.post("/redpacket")
+async def create_red_packet(
+    req: RedPacketRequest,
+    x_admin_secret: str = Header(None),
+    db: AsyncSession = Depends(get_db)
+):
+    """创建红包（管理员）"""
+    if x_admin_secret != ADMIN_PASSWORD:
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    
+    service = RedPacketService(db, req.bot_id)
+    rp = await service.create_red_packet(
+        total_quota=req.total_quota,
+        total_count=req.total_count,
+        is_random=req.is_random,
+        created_by=req.created_by
+    )
+    return {"success": True, "red_packet_id": rp.id}
+
+
+@router.get("/redpacket/{bot_id}")
+async def get_red_packets(
+    bot_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """获取红包列表"""
+    service = RedPacketService(db, bot_id)
+    packets = await service.get_active_red_packets()
+    return [{
+        "id": p.id,
+        "total_quota": p.total_quota,
+        "remaining_quota": p.remaining_quota,
+        "total_count": p.total_count,
+        "remaining_count": p.remaining_count,
+        "is_random": p.is_random,
+        "is_active": p.is_active
+    } for p in packets]
+
+
+@router.get("/redpacket/{bot_id}/all")
+async def get_all_red_packets(
+    bot_id: str,
+    x_admin_secret: str = Header(None),
+    db: AsyncSession = Depends(get_db)
+):
+    """获取所有红包（管理员）"""
+    if x_admin_secret != ADMIN_PASSWORD:
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    
+    service = RedPacketService(db, bot_id)
+    packets = await service.get_all_red_packets()
+    return [{
+        "id": p.id,
+        "total_quota": p.total_quota,
+        "remaining_quota": p.remaining_quota,
+        "total_count": p.total_count,
+        "remaining_count": p.remaining_count,
+        "is_random": p.is_random,
+        "is_active": p.is_active,
+        "created_at": p.created_at.isoformat() if p.created_at else None
+    } for p in packets]
+
+
+@router.post("/redpacket/claim")
+async def claim_red_packet(
+    req: ClaimRedPacketRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """领取红包"""
+    service = RedPacketService(db, req.bot_id)
+    return await service.claim_red_packet(req.red_packet_id, req.discord_id, req.discord_username)
+
+
+@router.delete("/redpacket/{red_packet_id}")
+async def delete_red_packet(
+    red_packet_id: int,
+    x_admin_secret: str = Header(None),
+    db: AsyncSession = Depends(get_db)
+):
+    """删除红包（管理员）"""
+    if x_admin_secret != ADMIN_PASSWORD:
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    
+    service = RedPacketService(db)
+    await service.delete_red_packet(red_packet_id)
+    return {"success": True}

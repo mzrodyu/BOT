@@ -165,3 +165,68 @@ class PublicAPIUser(Base):
     __table_args__ = (
         Index("idx_public_api_discord", "discord_id", unique=True),
     )
+
+
+class Lottery(Base):
+    """抽奖活动"""
+    __tablename__ = "lotteries"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    bot_id = Column(String(50), nullable=False, index=True)
+    title = Column(String(200), nullable=False)  # 抽奖标题
+    description = Column(Text)  # 描述
+    prize_quota = Column(Integer, default=0)  # 奖品额度
+    winner_count = Column(Integer, default=1)  # 中奖人数
+    end_time = Column(DateTime)  # 结束时间
+    is_active = Column(Boolean, default=True)
+    is_ended = Column(Boolean, default=False)
+    created_by = Column(String(50))  # 创建者Discord ID
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class LotteryParticipant(Base):
+    """抽奖参与者"""
+    __tablename__ = "lottery_participants"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    lottery_id = Column(Integer, ForeignKey("lotteries.id"), nullable=False)
+    discord_id = Column(String(50), nullable=False)
+    discord_username = Column(String(100))
+    is_winner = Column(Boolean, default=False)
+    joined_at = Column(DateTime, default=datetime.utcnow)
+    
+    __table_args__ = (
+        Index("idx_lottery_participant", "lottery_id", "discord_id", unique=True),
+    )
+
+
+class RedPacket(Base):
+    """额度红包"""
+    __tablename__ = "red_packets"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    bot_id = Column(String(50), nullable=False, index=True)
+    total_quota = Column(Integer, nullable=False)  # 总额度
+    remaining_quota = Column(Integer, nullable=False)  # 剩余额度
+    total_count = Column(Integer, nullable=False)  # 总个数
+    remaining_count = Column(Integer, nullable=False)  # 剩余个数
+    is_random = Column(Boolean, default=True)  # 是否拼手气
+    created_by = Column(String(50))  # 创建者Discord ID
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class RedPacketClaim(Base):
+    """红包领取记录"""
+    __tablename__ = "red_packet_claims"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    red_packet_id = Column(Integer, ForeignKey("red_packets.id"), nullable=False)
+    discord_id = Column(String(50), nullable=False)
+    discord_username = Column(String(100))
+    quota_received = Column(Integer, nullable=False)  # 领取的额度
+    claimed_at = Column(DateTime, default=datetime.utcnow)
+    
+    __table_args__ = (
+        Index("idx_redpacket_claim", "red_packet_id", "discord_id", unique=True),
+    )
