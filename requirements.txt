@@ -21,6 +21,7 @@ pydantic-settings>=2.1.0
 apscheduler>=3.10.0
 jieba>=0.42.1
 numpy>=1.24.0
+Pillow>=10.0.0
 
 # Web Admin
 jinja2>=3.1.0

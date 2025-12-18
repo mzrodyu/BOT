@@ -255,8 +255,34 @@ class MessageHandler(commands.Cog):
     async def get_image_urls(self, message: discord.Message) -> List[str]:
         """获取图片并转为base64 data URL（因为Discord CDN有访问限制）"""
         import base64
+        import io
         urls = []
         image_extensions = ('.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp')
+        
+        def convert_gif_to_png(image_data: bytes) -> tuple[bytes, str]:
+            """将GIF转换为PNG（提取第一帧），因为大多数AI模型不支持GIF"""
+            try:
+                from PIL import Image
+                img = Image.open(io.BytesIO(image_data))
+                # 转换为RGB模式（处理透明度）
+                if img.mode in ('RGBA', 'P'):
+                    img = img.convert('RGBA')
+                    # 创建白色背景
+                    background = Image.new('RGBA', img.size, (255, 255, 255, 255))
+                    background.paste(img, mask=img.split()[3] if img.mode == 'RGBA' else None)
+                    img = background.convert('RGB')
+                elif img.mode != 'RGB':
+                    img = img.convert('RGB')
+                
+                output = io.BytesIO()
+                img.save(output, format='PNG')
+                return output.getvalue(), 'image/png'
+            except ImportError:
+                print("[MessageHandler] PIL not installed, cannot convert GIF")
+                return image_data, 'image/gif'
+            except Exception as e:
+                print(f"[MessageHandler] GIF conversion failed: {e}")
+                return image_data, 'image/gif'
         
         # 从附件获取图片
         for attachment in message.attachments:
@@ -274,6 +300,12 @@ class MessageHandler(commands.Cog):
                 try:
                     # 下载图片并转为base64
                     image_data = await attachment.read()
+                    
+                    # 如果是GIF，转换为PNG
+                    if content_type == 'image/gif' or attachment.filename.lower().endswith('.gif'):
+                        print(f"[MessageHandler] Converting GIF to PNG: {attachment.filename}")
+                        image_data, content_type = convert_gif_to_png(image_data)
+                    
                     b64_data = base64.b64encode(image_data).decode('utf-8')
                     data_url = f"data:{content_type};base64,{b64_data}"
                     urls.append(data_url)
