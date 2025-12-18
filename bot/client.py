@@ -219,29 +219,50 @@ class MessageHandler(commands.Cog):
         return None
     
     async def get_image_urls(self, message: discord.Message) -> List[str]:
+        """获取图片并转为base64 data URL（因为Discord CDN有访问限制）"""
+        import base64
         urls = []
         image_extensions = ('.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp')
         
         # 从附件获取图片
         for attachment in message.attachments:
             is_image = False
-            if attachment.content_type and attachment.content_type.startswith("image/"):
+            content_type = attachment.content_type or "image/png"
+            if content_type.startswith("image/"):
                 is_image = True
             elif attachment.filename.lower().endswith(image_extensions):
                 is_image = True
+                # 根据扩展名推断content_type
+                ext = attachment.filename.lower().split('.')[-1]
+                content_type = f"image/{ext if ext != 'jpg' else 'jpeg'}"
             
             if is_image:
-                urls.append(attachment.url)
-                print(f"[MessageHandler] Image from attachment: {attachment.filename} ({attachment.content_type})")
+                try:
+                    # 下载图片并转为base64
+                    image_data = await attachment.read()
+                    b64_data = base64.b64encode(image_data).decode('utf-8')
+                    data_url = f"data:{content_type};base64,{b64_data}"
+                    urls.append(data_url)
+                    print(f"[MessageHandler] Image converted to base64: {attachment.filename} ({len(image_data)} bytes)")
+                except Exception as e:
+                    print(f"[MessageHandler] Failed to download image {attachment.filename}: {e}")
         
-        # 从embed获取图片
+        # 从embed获取图片（需要通过HTTP下载）
         for embed in message.embeds:
-            if embed.image and embed.image.url:
-                urls.append(embed.image.url)
-                print(f"[MessageHandler] Image from embed.image: {embed.image.url}")
-            if embed.thumbnail and embed.thumbnail.url:
-                urls.append(embed.thumbnail.url)
-                print(f"[MessageHandler] Image from embed.thumbnail: {embed.thumbnail.url}")
+            for img_url in [embed.image and embed.image.url, embed.thumbnail and embed.thumbnail.url]:
+                if img_url:
+                    try:
+                        async with self.bot.http_client.stream("GET", img_url, timeout=10.0) as resp:
+                            if resp.status_code == 200:
+                                image_data = await resp.aread()
+                                # 从URL或content-type推断类型
+                                ct = resp.headers.get("content-type", "image/png")
+                                b64_data = base64.b64encode(image_data).decode('utf-8')
+                                data_url = f"data:{ct};base64,{b64_data}"
+                                urls.append(data_url)
+                                print(f"[MessageHandler] Embed image converted to base64: {len(image_data)} bytes")
+                    except Exception as e:
+                        print(f"[MessageHandler] Failed to download embed image: {e}")
         
         return urls
     
