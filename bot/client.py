@@ -201,23 +201,29 @@ class MessageHandler(commands.Cog):
     async def get_context_messages(self, channel: discord.TextChannel, limit: int) -> List[dict]:
         messages = []
         async for msg in channel.history(limit=limit):
-            if msg.author.bot and msg.author != self.bot.user:
-                continue
-            
-            role = "assistant" if msg.author == self.bot.user else "user"
-            content = msg.content
-            
-            if role == "assistant":
+            # 判断消息角色
+            if msg.author == self.bot.user:
+                # 自己的消息作为 assistant
+                role = "assistant"
+                content = msg.content
                 # 清理Bot回复中的统计信息
                 import re
                 content = re.sub(r'\n?-# Time:.*$', '', content, flags=re.MULTILINE)
                 content = re.sub(r'\n?`Time:.*$', '', content, flags=re.MULTILINE)
                 # 清理表情格式残留
                 content = re.sub(r'<a?:[^:]+:\d+>', '', content)
-            else:
-                # 清理@提及，只保留纯文本内容
+            elif msg.author.bot:
+                # 其他Bot的消息作为 user（带Bot标记）
+                role = "user"
                 import re
-                content = re.sub(r'<@!?\d+>', '', content).strip()
+                content = re.sub(r'<@!?\d+>', '', msg.content).strip()
+                if content:
+                    content = f"[Bot:{msg.author.display_name}]: {content}"
+            else:
+                # 普通用户的消息
+                role = "user"
+                import re
+                content = re.sub(r'<@!?\d+>', '', msg.content).strip()
                 if content:
                     content = f"[{msg.author.display_name}]: {content}"
             
