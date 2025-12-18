@@ -154,24 +154,28 @@ async def test_connection(
         base_url = req.newapi_url.rstrip("/")
         base_url = re.sub(r'/(v1|api)$', '', base_url)
         
-        async with httpx.AsyncClient(timeout=10) as client:
-            url = base_url + "/api/user/self"
-            resp = await client.get(url, headers={
-                "Authorization": f"Bearer {req.newapi_token}",
-                "New-Api-User": req.newapi_token
-            })
+        async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
+            # 尝试多种认证方式
+            headers_list = [
+                {"Authorization": f"{req.newapi_token}"},  # 直接token
+                {"Authorization": f"Bearer {req.newapi_token}"},  # Bearer token
+                {"Cookie": f"session={req.newapi_token}"},  # Cookie session
+            ]
             
-            if resp.status_code == 200:
-                data = resp.json()
-                if data.get("success") != False:
-                    username = data.get("data", {}).get("username", "admin")
-                    return {"success": True, "message": f"连接成功！用户: {username}"}
-                else:
-                    return {"success": False, "message": data.get("message", "认证失败")}
-            elif resp.status_code == 401:
-                return {"success": False, "message": "Token无效或已过期，请重新获取"}
-            else:
-                return {"success": False, "message": f"HTTP {resp.status_code}"}
+            for headers in headers_list:
+                url = base_url + "/api/user/self"
+                resp = await client.get(url, headers=headers)
+                
+                if resp.status_code == 200:
+                    data = resp.json()
+                    if data.get("success") != False and data.get("data"):
+                        username = data.get("data", {}).get("username", "admin")
+                        role = data.get("data", {}).get("role", 0)
+                        role_name = "管理员" if role >= 100 else "普通用户"
+                        return {"success": True, "message": f"连接成功！用户: {username} ({role_name})"}
+            
+            # 所有方式都失败
+            return {"success": False, "message": "Token无效，请确保使用管理员账号的系统访问令牌"}
     except Exception as e:
         return {"success": False, "message": str(e)}
 
