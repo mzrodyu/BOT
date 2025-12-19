@@ -1055,3 +1055,210 @@ class PublicAPICommands(commands.Cog):
                 await interaction.followup.send(f"❌ {data.get('error', '领取失败')}", ephemeral=True)
         except Exception as e:
             await interaction.followup.send(f"❌ 领取失败: {e}", ephemeral=True)
+    
+    # ========== 管理员公开发布命令 ==========
+    @app_commands.command(name="发起抽奖", description="【管理员】发起一个公开抽奖活动")
+    @app_commands.describe(
+        title="抽奖标题",
+        prize="奖品额度(NewAPI单位，1美元=500000)",
+        winners="中奖人数"
+    )
+    async def publish_lottery(
+        self, 
+        interaction: discord.Interaction, 
+        title: str,
+        prize: int = 500000,
+        winners: int = 1
+    ):
+        # 检查管理员权限
+        if not interaction.user.guild_permissions.administrator:
+            await interaction.response.send_message("❌ 只有管理员可以发起抽奖", ephemeral=True)
+            return
+        
+        await interaction.response.defer()
+        
+        try:
+            # 创建抽奖
+            resp = await self.bot.http_client.post(
+                f"{BACKEND_URL}/api/public/lottery",
+                json={
+                    "bot_id": BOT_ID,
+                    "title": title,
+                    "prize_quota": prize,
+                    "winner_count": winners,
+                    "created_by": str(interaction.user.id)
+                },
+                headers={"X-Admin-Secret": os.getenv("ADMIN_PASSWORD", "")}
+            )
+            data = resp.json()
+            
+            if data.get("success"):
+                lottery_id = data.get("lottery_id")
+                usd = prize / 500000
+                
+                embed = discord.Embed(
+                    title=f"🎁 {title}",
+                    description=f"点击下方按钮参与抽奖！\n\n**奖品**: {prize} 额度 (约 ${usd:.2f})\n**中奖人数**: {winners} 人",
+                    color=discord.Color.purple()
+                )
+                embed.set_footer(text=f"抽奖ID: {lottery_id} | 由 {interaction.user.display_name} 发起")
+                
+                view = LotteryView(self.bot, lottery_id)
+                await interaction.followup.send(embed=embed, view=view)
+            else:
+                await interaction.followup.send(f"❌ 创建失败: {data.get('error')}", ephemeral=True)
+        except Exception as e:
+            await interaction.followup.send(f"❌ 发起抽奖失败: {e}", ephemeral=True)
+    
+    @app_commands.command(name="发红包", description="【管理员】发一个公开红包")
+    @app_commands.describe(
+        total="总额度(NewAPI单位，1美元=500000)",
+        count="红包个数",
+        random="是否拼手气(随机金额)"
+    )
+    async def publish_redpacket(
+        self, 
+        interaction: discord.Interaction, 
+        total: int = 500000,
+        count: int = 10,
+        random: bool = True
+    ):
+        if not interaction.user.guild_permissions.administrator:
+            await interaction.response.send_message("❌ 只有管理员可以发红包", ephemeral=True)
+            return
+        
+        await interaction.response.defer()
+        
+        try:
+            resp = await self.bot.http_client.post(
+                f"{BACKEND_URL}/api/public/redpacket",
+                json={
+                    "bot_id": BOT_ID,
+                    "total_quota": total,
+                    "total_count": count,
+                    "is_random": random,
+                    "created_by": str(interaction.user.id)
+                },
+                headers={"X-Admin-Secret": os.getenv("ADMIN_PASSWORD", "")}
+            )
+            data = resp.json()
+            
+            if data.get("success"):
+                rp_id = data.get("red_packet_id")
+                usd = total / 500000
+                rtype = "🎲 拼手气红包" if random else "💰 普通红包"
+                
+                embed = discord.Embed(
+                    title=f"🧧 {rtype}",
+                    description=f"点击下方按钮领取红包！\n\n**总额度**: {total} (约 ${usd:.2f})\n**红包个数**: {count} 个",
+                    color=discord.Color.red()
+                )
+                embed.set_footer(text=f"红包ID: {rp_id} | 由 {interaction.user.display_name} 发放")
+                
+                view = RedPacketView(self.bot, rp_id, count)
+                await interaction.followup.send(embed=embed, view=view)
+            else:
+                await interaction.followup.send(f"❌ 创建失败: {data.get('error')}", ephemeral=True)
+        except Exception as e:
+            await interaction.followup.send(f"❌ 发红包失败: {e}", ephemeral=True)
+    
+    @app_commands.command(name="开奖", description="【管理员】对指定抽奖进行开奖")
+    @app_commands.describe(lottery_id="抽奖活动ID")
+    async def draw_lottery(self, interaction: discord.Interaction, lottery_id: int):
+        if not interaction.user.guild_permissions.administrator:
+            await interaction.response.send_message("❌ 只有管理员可以开奖", ephemeral=True)
+            return
+        
+        await interaction.response.defer()
+        
+        try:
+            resp = await self.bot.http_client.post(
+                f"{BACKEND_URL}/api/public/lottery/{lottery_id}/draw",
+                headers={"X-Admin-Secret": os.getenv("ADMIN_PASSWORD", "")}
+            )
+            data = resp.json()
+            
+            if data.get("success"):
+                winners = data.get("winners", [])
+                if winners:
+                    winner_mentions = ", ".join([f"<@{w['discord_id']}>" for w in winners])
+                    embed = discord.Embed(
+                        title="🎉 开奖结果",
+                        description=f"恭喜以下用户中奖！\n\n{winner_mentions}\n\n每人获得 **{data.get('prize_per_winner', 0)}** 额度！",
+                        color=discord.Color.gold()
+                    )
+                    await interaction.followup.send(embed=embed)
+                else:
+                    await interaction.followup.send("⚠️ 没有人参与抽奖")
+            else:
+                await interaction.followup.send(f"❌ 开奖失败: {data.get('error')}", ephemeral=True)
+        except Exception as e:
+            await interaction.followup.send(f"❌ 开奖失败: {e}", ephemeral=True)
+
+
+# ========== 按钮交互视图 ==========
+class LotteryView(discord.ui.View):
+    def __init__(self, bot, lottery_id: int):
+        super().__init__(timeout=None)
+        self.bot = bot
+        self.lottery_id = lottery_id
+    
+    @discord.ui.button(label="🎁 参与抽奖", style=discord.ButtonStyle.primary, custom_id="join_lottery")
+    async def join_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.defer(ephemeral=True)
+        try:
+            resp = await self.bot.http_client.post(
+                f"{BACKEND_URL}/api/public/lottery/join",
+                json={
+                    "bot_id": BOT_ID,
+                    "lottery_id": self.lottery_id,
+                    "discord_id": str(interaction.user.id),
+                    "discord_username": interaction.user.display_name
+                }
+            )
+            data = resp.json()
+            if data.get("success"):
+                await interaction.followup.send(f"✅ 参与成功！当前已有 **{data.get('participant_count', '?')}** 人参与", ephemeral=True)
+            else:
+                await interaction.followup.send(f"❌ {data.get('error', '参与失败')}", ephemeral=True)
+        except Exception as e:
+            await interaction.followup.send(f"❌ 参与失败: {e}", ephemeral=True)
+
+
+class RedPacketView(discord.ui.View):
+    def __init__(self, bot, rp_id: int, total_count: int):
+        super().__init__(timeout=None)
+        self.bot = bot
+        self.rp_id = rp_id
+        self.total_count = total_count
+        self.claimed_count = 0
+    
+    @discord.ui.button(label="🧧 领取红包", style=discord.ButtonStyle.danger, custom_id="claim_redpacket")
+    async def claim_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.defer(ephemeral=True)
+        try:
+            resp = await self.bot.http_client.post(
+                f"{BACKEND_URL}/api/public/redpacket/claim",
+                json={
+                    "bot_id": BOT_ID,
+                    "red_packet_id": self.rp_id,
+                    "discord_id": str(interaction.user.id),
+                    "discord_username": interaction.user.display_name
+                }
+            )
+            data = resp.json()
+            if data.get("success"):
+                quota = data.get("quota", 0)
+                usd = quota / 500000
+                remaining = data.get("remaining_count", 0)
+                await interaction.followup.send(f"🎉 恭喜领到 **{quota}** 额度 (约 ${usd:.4f})！", ephemeral=True)
+                
+                # 更新按钮显示
+                if remaining == 0:
+                    button.label = "🧧 已领完"
+                    button.disabled = True
+                    await interaction.message.edit(view=self)
+            else:
+                await interaction.followup.send(f"❌ {data.get('error', '领取失败')}", ephemeral=True)
+        except Exception as e:
+            await interaction.followup.send(f"❌ 领取失败: {e}", ephemeral=True)
