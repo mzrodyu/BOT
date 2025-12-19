@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, delete
 from database import get_db
 from backend.services.public_api_service import PublicAPIService
 from backend.services.lottery_service import LotteryService, RedPacketService
@@ -79,7 +80,6 @@ async def save_config(
         raise HTTPException(status_code=403, detail="Unauthorized")
     
     from database.models import PublicAPIConfig
-    from sqlalchemy import select
     
     # 查找现有配置
     result = await db.execute(
@@ -489,17 +489,20 @@ async def get_redeem_code_stats(
     
     from sqlalchemy import func
     
-    total = await db.execute(
-        select(func.count()).where(RedeemCode.bot_id == bot_id)
+    total_result = await db.execute(
+        select(func.count(RedeemCode.id)).where(RedeemCode.bot_id == bot_id)
     )
-    used = await db.execute(
-        select(func.count()).where(RedeemCode.bot_id == bot_id, RedeemCode.is_used == True)
+    used_result = await db.execute(
+        select(func.count(RedeemCode.id)).where(RedeemCode.bot_id == bot_id, RedeemCode.is_used == True)
     )
     
+    total_count = total_result.scalar() or 0
+    used_count = used_result.scalar() or 0
+    
     return {
-        "total": total.scalar() or 0,
-        "used": used.scalar() or 0,
-        "available": (total.scalar() or 0) - (used.scalar() or 0)
+        "total": total_count,
+        "used": used_count,
+        "available": total_count - used_count
     }
 
 
