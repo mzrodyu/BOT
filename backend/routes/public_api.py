@@ -135,7 +135,7 @@ async def get_config(
 
 class TestConnectionRequest(BaseModel):
     newapi_url: str
-    newapi_token: str
+    newapi_token: str  # 现在这个字段存储密码
 
 
 @router.post("/test-connection")
@@ -143,55 +143,60 @@ async def test_connection(
     req: TestConnectionRequest,
     x_admin_secret: str = Header(None)
 ):
-    """测试NewAPI连接（通过后端代理避免CORS）"""
+    """测试NewAPI连接 - 使用用户名密码登录"""
     if x_admin_secret != ADMIN_PASSWORD:
         raise HTTPException(status_code=403, detail="Unauthorized")
     
     import httpx
     import re
     try:
-        # 清理URL：移除末尾的 /v1 或 /api 等
         base_url = req.newapi_url.rstrip("/")
         base_url = re.sub(r'/(v1|api)$', '', base_url)
         
         async with httpx.AsyncClient(timeout=10, follow_redirects=True, verify=False) as client:
-            # 先测试基本连接
-            try:
-                test_resp = await client.get(base_url)
-                print(f"[Test] Base URL {base_url} status: {test_resp.status_code}")
-            except Exception as e:
-                return {"success": False, "message": f"无法连接到 {base_url}: {e}"}
+            # 检查token格式：如果包含:则是 username:password 格式
+            if ':' in req.newapi_token:
+                username, password = req.newapi_token.split(':', 1)
+            else:
+                # 兼容旧格式，尝试直接用token
+                username, password = None, None
             
-            # 尝试多种认证方式
-            headers_list = [
-                ("Bearer", {"Authorization": f"Bearer {req.newapi_token}"}),
-                ("Direct", {"Authorization": f"{req.newapi_token}"}),
-                ("Cookie", {"Cookie": f"session={req.newapi_token}"}),
-            ]
-            
-            errors = []
-            for name, headers in headers_list:
-                url = base_url + "/api/user/self"
-                resp = await client.get(url, headers=headers)
-                print(f"[Test] {name} auth: {resp.status_code}")
+            if username and password:
+                # 用户名密码登录
+                login_resp = await client.post(
+                    f"{base_url}/api/user/login",
+                    json={"username": username, "password": password}
+                )
                 
-                if resp.status_code == 200:
-                    try:
-                        data = resp.json()
-                        if data.get("success") != False and data.get("data"):
-                            username = data.get("data", {}).get("username", "admin")
-                            role = data.get("data", {}).get("role", 0)
-                            role_name = "管理员" if role >= 100 else "普通用户"
-                            return {"success": True, "message": f"连接成功！用户: {username} ({role_name})"}
-                        else:
-                            errors.append(f"{name}: {data.get('message', 'API返回失败')}")
-                    except:
-                        errors.append(f"{name}: 响应解析失败")
+                if login_resp.status_code != 200:
+                    return {"success": False, "message": f"登录请求失败: HTTP {login_resp.status_code}"}
+                
+                login_data = login_resp.json()
+                if not login_data.get("success"):
+                    return {"success": False, "message": f"登录失败: {login_data.get('message', '未知错误')}"}
+                
+                # 获取session和用户信息
+                session = login_resp.cookies.get("session")
+                user_data = login_data.get("data", {})
+                user_id = user_data.get("id", 1)
+                role = user_data.get("role", 0)
+                
+                if not session:
+                    return {"success": False, "message": "登录成功但未获取到session"}
+                
+                # 验证session可用
+                headers = {"Cookie": f"session={session}", "New-Api-User": str(user_id)}
+                resp = await client.get(f"{base_url}/api/user/self", headers=headers)
+                
+                if resp.status_code == 200 and resp.json().get("success"):
+                    role_name = "管理员" if role >= 100 else "普通用户"
+                    if role < 100:
+                        return {"success": False, "message": f"登录成功但{username}不是管理员，无法创建用户"}
+                    return {"success": True, "message": f"连接成功！用户: {username} ({role_name})", "session": session, "user_id": user_id}
                 else:
-                    errors.append(f"{name}: HTTP {resp.status_code}")
-            
-            # 所有方式都失败，返回详细错误
-            return {"success": False, "message": f"认证失败: {'; '.join(errors)}"}
+                    return {"success": False, "message": "Session验证失败"}
+            else:
+                return {"success": False, "message": "请使用 用户名:密码 格式填写Token字段，如 admin:123456"}
     except Exception as e:
         return {"success": False, "message": str(e)}
 
