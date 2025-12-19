@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
-from database.models import Lottery, LotteryParticipant, RedPacket, RedPacketClaim, PublicAPIUser, PublicAPIConfig
+from database.models import Lottery, LotteryParticipant, RedPacket, RedPacketClaim, PublicAPIUser, PublicAPIConfig, RedeemCode
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 import random
@@ -93,7 +93,7 @@ class LotteryService:
         return {"success": True, "participant_count": count}
     
     async def draw_lottery(self, lottery_id: int) -> Dict[str, Any]:
-        """开奖"""
+        """开奖 - 给中奖者发放兑换码"""
         lottery = await self.get_lottery(lottery_id)
         if not lottery:
             return {"success": False, "error": "抽奖不存在"}
@@ -113,21 +113,45 @@ class LotteryService:
         winner_count = min(lottery.winner_count, len(participants))
         winners = random.sample(list(participants), winner_count)
         
-        # 更新中奖状态
-        for winner in winners:
+        # 检查是否有足够的兑换码
+        codes_result = await self.db.execute(
+            select(RedeemCode).where(
+                RedeemCode.bot_id == lottery.bot_id,
+                RedeemCode.is_used == False
+            ).limit(winner_count)
+        )
+        available_codes = codes_result.scalars().all()
+        
+        if len(available_codes) < winner_count:
+            return {"success": False, "error": f"兑换码不足，需要{winner_count}个，只有{len(available_codes)}个"}
+        
+        # 更新中奖状态并分配兑换码
+        winner_list = []
+        for i, winner in enumerate(winners):
             winner.is_winner = True
+            code = available_codes[i]
+            code.is_used = True
+            code.used_by_discord_id = winner.discord_id
+            code.used_by_username = winner.discord_username
+            code.source = "lottery"
+            code.source_id = lottery_id
+            code.used_at = datetime.utcnow()
+            
+            winner_list.append({
+                "discord_id": winner.discord_id,
+                "username": winner.discord_username,
+                "redeem_code": code.code,
+                "quota": code.quota
+            })
         
         # 标记抽奖结束
         lottery.is_ended = True
         await self.db.commit()
         
-        # 给中奖者发放额度
-        prize_per_winner = lottery.prize_quota // winner_count if winner_count > 0 else 0
-        
         return {
             "success": True,
-            "winners": [{"discord_id": w.discord_id, "username": w.discord_username} for w in winners],
-            "prize_per_winner": prize_per_winner
+            "winners": winner_list,
+            "prize_per_winner": available_codes[0].quota if available_codes else 0
         }
     
     async def get_participant_count(self, lottery_id: int) -> int:
@@ -195,7 +219,7 @@ class RedPacketService:
         return result.scalar_one_or_none()
     
     async def claim_red_packet(self, red_packet_id: int, discord_id: str, discord_username: str) -> Dict[str, Any]:
-        """领取红包"""
+        """领取红包 - 发放兑换码"""
         red_packet = await self.get_red_packet(red_packet_id)
         if not red_packet:
             return {"success": False, "error": "红包不存在"}
@@ -214,21 +238,27 @@ class RedPacketService:
         if existing.scalar_one_or_none():
             return {"success": False, "error": "您已经领过了"}
         
-        # 计算领取额度
-        if red_packet.is_random:
-            # 拼手气：随机分配
-            if red_packet.remaining_count == 1:
-                quota = red_packet.remaining_quota
-            else:
-                # 保证每个人至少能领到1，最多领取剩余额度的50%
-                max_quota = max(1, red_packet.remaining_quota * 2 // (red_packet.remaining_count + 1))
-                quota = random.randint(1, max_quota)
-        else:
-            # 平均分配
-            quota = red_packet.total_quota // red_packet.total_count
+        # 获取一个可用的兑换码
+        code_result = await self.db.execute(
+            select(RedeemCode).where(
+                RedeemCode.bot_id == red_packet.bot_id,
+                RedeemCode.is_used == False
+            ).limit(1)
+        )
+        code = code_result.scalar_one_or_none()
+        
+        if not code:
+            return {"success": False, "error": "兑换码已发完，请联系管理员"}
+        
+        # 标记兑换码已使用
+        code.is_used = True
+        code.used_by_discord_id = discord_id
+        code.used_by_username = discord_username
+        code.source = "redpacket"
+        code.source_id = red_packet_id
+        code.used_at = datetime.utcnow()
         
         # 更新红包
-        red_packet.remaining_quota -= quota
         red_packet.remaining_count -= 1
         if red_packet.remaining_count <= 0:
             red_packet.is_active = False
@@ -238,14 +268,16 @@ class RedPacketService:
             red_packet_id=red_packet_id,
             discord_id=discord_id,
             discord_username=discord_username,
-            quota_received=quota
+            quota_received=code.quota,
+            redeem_code=code.code
         )
         self.db.add(claim)
         await self.db.commit()
         
         return {
             "success": True,
-            "quota": quota,
+            "quota": code.quota,
+            "redeem_code": code.code,
             "remaining_count": red_packet.remaining_count
         }
     

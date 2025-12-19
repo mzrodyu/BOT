@@ -1184,10 +1184,24 @@ class PublicAPICommands(commands.Cog):
                     winner_mentions = ", ".join([f"<@{w['discord_id']}>" for w in winners])
                     embed = discord.Embed(
                         title="🎉 开奖结果",
-                        description=f"恭喜以下用户中奖！\n\n{winner_mentions}\n\n每人获得 **{data.get('prize_per_winner', 0)}** 额度！",
+                        description=f"恭喜以下用户中奖！\n\n{winner_mentions}\n\n兑换码已私信发送！",
                         color=discord.Color.gold()
                     )
                     await interaction.followup.send(embed=embed)
+                    
+                    # 私信发送兑换码给中奖者
+                    for w in winners:
+                        try:
+                            user = await self.bot.fetch_user(int(w['discord_id']))
+                            dm_embed = discord.Embed(
+                                title="🎁 恭喜中奖！",
+                                description=f"你在抽奖活动中中奖了！\n\n**兑换码**: `{w.get('redeem_code', '未知')}`\n**额度**: {w.get('quota', 0)}",
+                                color=discord.Color.gold()
+                            )
+                            dm_embed.set_footer(text="请到NewAPI后台使用此兑换码")
+                            await user.send(embed=dm_embed)
+                        except:
+                            pass  # 私信失败跳过
                 else:
                     await interaction.followup.send("⚠️ 没有人参与抽奖")
             else:
@@ -1251,7 +1265,16 @@ class RedPacketView(discord.ui.View):
                 quota = data.get("quota", 0)
                 usd = quota / 500000
                 remaining = data.get("remaining_count", 0)
-                await interaction.followup.send(f"🎉 恭喜领到 **{quota}** 额度 (约 ${usd:.4f})！", ephemeral=True)
+                redeem_code = data.get("redeem_code", "")
+                
+                # 显示兑换码
+                embed = discord.Embed(
+                    title="🧧 恭喜领取成功！",
+                    description=f"**兑换码**: `{redeem_code}`\n**额度**: {quota} (约 ${usd:.4f})",
+                    color=discord.Color.red()
+                )
+                embed.set_footer(text="请到NewAPI后台使用此兑换码")
+                await interaction.followup.send(embed=embed, ephemeral=True)
                 
                 # 更新按钮显示
                 if remaining == 0:

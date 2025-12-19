@@ -225,8 +225,31 @@ class RedPacketClaim(Base):
     discord_id = Column(String(50), nullable=False)
     discord_username = Column(String(100))
     quota_received = Column(Integer, nullable=False)  # 领取的额度
+    redeem_code = Column(String(200))  # 发放的兑换码
     claimed_at = Column(DateTime, default=datetime.utcnow)
     
     __table_args__ = (
         Index("idx_redpacket_claim", "red_packet_id", "discord_id", unique=True),
+    )
+
+
+class RedeemCode(Base):
+    """兑换码池"""
+    __tablename__ = "redeem_codes"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    bot_id = Column(String(50), nullable=False, index=True)
+    code = Column(String(200), nullable=False)  # 兑换码
+    quota = Column(Integer, default=0)  # 额度
+    description = Column(String(200))  # 描述（如"1美元额度"）
+    is_used = Column(Boolean, default=False)  # 是否已使用
+    used_by_discord_id = Column(String(50))  # 使用者Discord ID
+    used_by_username = Column(String(100))  # 使用者用户名
+    source = Column(String(50))  # 来源：lottery/redpacket/manual
+    source_id = Column(Integer)  # 来源ID（抽奖ID或红包ID）
+    created_at = Column(DateTime, default=datetime.utcnow)
+    used_at = Column(DateTime)
+    
+    __table_args__ = (
+        Index("idx_redeem_code_bot", "bot_id", "is_used"),
     )

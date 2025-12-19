@@ -402,3 +402,142 @@ async def delete_red_packet(
     service = RedPacketService(db)
     await service.delete_red_packet(red_packet_id)
     return {"success": True}
+
+
+# ========== 兑换码 API ==========
+from database.models import RedeemCode
+
+class RedeemCodeRequest(BaseModel):
+    bot_id: str
+    codes: List[str]  # 兑换码列表
+    quota: int = 0  # 每个兑换码的额度
+    description: str = ""  # 描述
+
+
+@router.post("/redeem-codes")
+async def add_redeem_codes(
+    req: RedeemCodeRequest,
+    x_admin_secret: str = Header(None),
+    db: AsyncSession = Depends(get_db)
+):
+    """批量添加兑换码（管理员）"""
+    if x_admin_secret != ADMIN_PASSWORD:
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    
+    added = 0
+    for code in req.codes:
+        code = code.strip()
+        if not code:
+            continue
+        # 检查是否已存在
+        existing = await db.execute(
+            select(RedeemCode).where(RedeemCode.bot_id == req.bot_id, RedeemCode.code == code)
+        )
+        if existing.scalar_one_or_none():
+            continue
+        
+        db.add(RedeemCode(
+            bot_id=req.bot_id,
+            code=code,
+            quota=req.quota,
+            description=req.description,
+            is_used=False
+        ))
+        added += 1
+    
+    await db.commit()
+    return {"success": True, "added": added}
+
+
+@router.get("/redeem-codes/{bot_id}")
+async def get_redeem_codes(
+    bot_id: str,
+    x_admin_secret: str = Header(None),
+    db: AsyncSession = Depends(get_db)
+):
+    """获取兑换码列表（管理员）"""
+    if x_admin_secret != ADMIN_PASSWORD:
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    
+    result = await db.execute(
+        select(RedeemCode).where(RedeemCode.bot_id == bot_id).order_by(RedeemCode.created_at.desc())
+    )
+    codes = result.scalars().all()
+    
+    return [{
+        "id": c.id,
+        "code": c.code,
+        "quota": c.quota,
+        "description": c.description,
+        "is_used": c.is_used,
+        "used_by_username": c.used_by_username,
+        "source": c.source,
+        "created_at": c.created_at.isoformat() if c.created_at else None,
+        "used_at": c.used_at.isoformat() if c.used_at else None
+    } for c in codes]
+
+
+@router.get("/redeem-codes/{bot_id}/stats")
+async def get_redeem_code_stats(
+    bot_id: str,
+    x_admin_secret: str = Header(None),
+    db: AsyncSession = Depends(get_db)
+):
+    """获取兑换码统计（管理员）"""
+    if x_admin_secret != ADMIN_PASSWORD:
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    
+    from sqlalchemy import func
+    
+    total = await db.execute(
+        select(func.count()).where(RedeemCode.bot_id == bot_id)
+    )
+    used = await db.execute(
+        select(func.count()).where(RedeemCode.bot_id == bot_id, RedeemCode.is_used == True)
+    )
+    
+    return {
+        "total": total.scalar() or 0,
+        "used": used.scalar() or 0,
+        "available": (total.scalar() or 0) - (used.scalar() or 0)
+    }
+
+
+@router.delete("/redeem-codes/{code_id}")
+async def delete_redeem_code(
+    code_id: int,
+    x_admin_secret: str = Header(None),
+    db: AsyncSession = Depends(get_db)
+):
+    """删除兑换码（管理员）"""
+    if x_admin_secret != ADMIN_PASSWORD:
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    
+    await db.execute(
+        delete(RedeemCode).where(RedeemCode.id == code_id)
+    )
+    await db.commit()
+    return {"success": True}
+
+
+async def get_available_redeem_code(db: AsyncSession, bot_id: str) -> Optional[RedeemCode]:
+    """获取一个可用的兑换码"""
+    result = await db.execute(
+        select(RedeemCode).where(
+            RedeemCode.bot_id == bot_id,
+            RedeemCode.is_used == False
+        ).limit(1)
+    )
+    return result.scalar_one_or_none()
+
+
+async def mark_code_used(db: AsyncSession, code: RedeemCode, discord_id: str, username: str, source: str, source_id: int):
+    """标记兑换码已使用"""
+    from datetime import datetime
+    code.is_used = True
+    code.used_by_discord_id = discord_id
+    code.used_by_username = username
+    code.source = source
+    code.source_id = source_id
+    code.used_at = datetime.utcnow()
+    await db.commit()
